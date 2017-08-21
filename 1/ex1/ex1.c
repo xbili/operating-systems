@@ -50,11 +50,11 @@ int main()
 //Function Implementations
 node* addToHead(node* head, int newData)
 {
-    node* node = malloc(sizeof(node));
-    node->data = newData;
-    node->next = head;
+    node* added = malloc(sizeof(node));
+    added->data = newData;
+    added->next = head;
 
-    return node;
+    return added;
 }
 
 void printList(node* head)
