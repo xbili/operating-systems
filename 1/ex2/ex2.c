@@ -1,8 +1,8 @@
 /*************************************
-* Lab 1 Exercise 1
-* Name:
-* Matric No:
-* Lab Group:
+* Lab 1 Exercise 2
+* Name: Xu Bili
+* Matric No: A0124368A
+* Lab Group: 4
 *************************************/
 
 #include <stdio.h>
@@ -26,31 +26,58 @@ void destroyList(node*);
 int main()
 {
     node* myList = NULL;    //Empty List
-    int position, input;
+    int position, input, copies;
 
-    //Fill in code for input and processing
+    // TODO: Figure out why scanf isn't working as it is supposed to be
+    while (scanf("%i%i%i", &position, &input, &copies) == 1) {
+        printf("Position: %d\n", position);
+        printf("Input: %d\n", input);
+        printf("Copies: %d\n", copies);
+    }
 
     //Output code coded for you
     printf("My List:\n");
     printList(myList);
-    
+
     destroyList(myList);
     myList = NULL;
 
-    
+
     printf("My List After Destroy:\n");
     printList(myList);
- 
+
     return 0;
 }
 
 //Actual Function Implementations
 node* insertAt(node* head, int position, int copies, int newValue)
 {
-    //Fill in your code here
-    return NULL;    //change this!
+    // -1 because we want to insert the copies BEFORE the position
+    int currPos = position - 1;
+
+    // We shift the current pointer to the position we want to insert our
+    // copies into
+    node* curr = head;
+    while (currPos > 0) {
+        curr = curr->next;
+        currPos--;
+    }
+
+    // We insert `copies` number of nodes
+    for (int i = 0; i < copies; ++i) {
+        node* tmp = curr->next;
+        node* added = malloc(sizeof(node));
+        added->data = newValue;
+
+        curr->next = added;
+        added->next = tmp;
+
+        curr = added;
+    }
+
+    return head;
 }
- 
+
 void printList(node* head)
 //Purpose: Print out the linked list content
 //Assumption: the list is properly null terminated
@@ -67,7 +94,10 @@ void printList(node* head)
 
 void destroyList(node* head)
 {
-     
-    //Fill in your code here
-    //You can use the same implementation as in exercise 1
+    node* curr = head;
+    while (curr) {
+        node* tmp = curr->next;
+        free(curr);
+        curr = tmp;
+    }
 }
