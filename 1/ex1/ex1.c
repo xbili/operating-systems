@@ -28,8 +28,8 @@ int main()
     int input;
 
 
-    while (scanf("%i",&input) == 1){
-        //Add to head
+    while (scanf("%i",&input) == 1) {
+        myList = addToHead(myList, input);
     }
 
     //Print out the linked list
@@ -50,10 +50,11 @@ int main()
 //Function Implementations
 node* addToHead(node* head, int newData)
 {
-    //Fill in your code here
+    node* node = malloc(sizeof(node));
+    node->data = newData;
+    node->next = head;
 
-
-    return NULL;    //change this
+    return node;
 }
 
 void printList(node* head)
@@ -64,7 +65,7 @@ void printList(node* head)
     //This function has been implemented for you
     node* ptr = head;
 
-    while (ptr != NULL)  {    //or you can write while(ptr)
+    while (ptr != NULL) {    //or you can write while(ptr)
         printf("%i ", ptr->data);
         ptr = ptr->next;
     }
@@ -73,5 +74,10 @@ void printList(node* head)
 
 void destroyList(node* head)
 {
-    //Fill in your code here
+    node* curr = head;
+    while (curr) {
+        node* tmp = curr->next;
+        free(curr);
+        curr = tmp;
+    }
 }
