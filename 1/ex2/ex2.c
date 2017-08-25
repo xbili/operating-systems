@@ -28,11 +28,8 @@ int main()
     node* myList = NULL;    //Empty List
     int position, input, copies;
 
-    // TODO: Figure out why scanf isn't working as it is supposed to be
-    while (scanf("%i%i%i", &position, &input, &copies) == 1) {
-        printf("Position: %d\n", position);
-        printf("Input: %d\n", input);
-        printf("Copies: %d\n", copies);
+    while (scanf("%i %i %i", &position, &input, &copies) != EOF) {
+        myList = insertAt(myList, position, copies, input);
     }
 
     //Output code coded for you
@@ -42,41 +39,88 @@ int main()
     destroyList(myList);
     myList = NULL;
 
-
     printf("My List After Destroy:\n");
     printList(myList);
 
     return 0;
 }
 
+
+// HELPER:
+// Create a linked list of length k with same elements
+node* createList(int copies, int value) {
+    // Create a head node first
+    node* head = malloc(sizeof(node));
+    head->data = value;
+
+    // `head` takes up one copy of what we want
+    copies--;
+
+    // Append the copies of our item to the back of the list
+    node* curr = head;
+    for (int i = 0; i < copies; i++) {
+        node* added = malloc(sizeof(node));
+        added->data = value;
+
+        curr->next = added;
+        curr = added;
+    }
+
+    return head;
+}
+
+// HELPER:
+// Get the node that is the tail of the linked list
+node* getTail(node* head) {
+    node* curr = head;
+    while (curr->next) {
+        curr = curr->next;
+    }
+
+    return curr;
+}
+
 //Actual Function Implementations
 node* insertAt(node* head, int position, int copies, int newValue)
 {
+    node* toInsert = createList(copies, newValue);
+
+    // Our newly created list will be the result if we want to insert to an
+    // empty list
+    if (head == NULL) {
+        return toInsert;
+    }
+
+    // If we want to insert the copies before the current head of the list
+    if (position == 0) {
+        node* tail = getTail(toInsert);
+        tail->next = head;
+        return toInsert;
+    }
+
     // -1 because we want to insert the copies BEFORE the position
     int currPos = position - 1;
 
     // We shift the current pointer to the position we want to insert our
     // copies into
     node* curr = head;
-    while (currPos > 0) {
+    while (curr->next && currPos > 0) {
         curr = curr->next;
         currPos--;
     }
 
-    // We insert `copies` number of nodes
-    for (int i = 0; i < copies; ++i) {
-        node* tmp = curr->next;
-        node* added = malloc(sizeof(node));
-        added->data = newValue;
+    node* tmp = curr->next;
 
-        curr->next = added;
-        added->next = tmp;
+    // Insert our newly created list
+    curr->next = toInsert;
 
-        curr = added;
-    }
+    // Connect the disconnected part of linked list back
+    node* tail = getTail(curr);
+    tail->next = tmp;
 
     return head;
 }
+
 
 void printList(node* head)
 //Purpose: Print out the linked list content
