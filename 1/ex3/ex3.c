@@ -1,50 +1,60 @@
 /*************************************
 * Lab 1 Exercise 3
-* Name     :
-* Matric No:
-* Lab Group:
+* Name     : Xu Bili
+* Matric No: A0124368A
+* Lab Group: 4
 *************************************/
 
 #include <stdio.h>
+#include <stdlib.h> //for malloc() and free()
 
-//Datatype Declarations
-typedef int (*arithFuncPtr)(int, int);
+typedef struct POSITION {
+    int x;
+    int y;
+} position;
+typedef void (*move) (position*, int);
 
-
-//Function Prototypes
-int add(int x, int y);
-
+move getMove(int op);
+void up(position* p, int steps);
+void down(position* p, int steps);
+void left(position* p, int steps);
+void right(position* p, int steps);
 
 int main()
 {
-    int a, b, optype, res;
+    int op, steps;
+    position* p = malloc(sizeof(position));
+    p->x = 0;
+    p->y = 0;
 
-    //The code below is to show the usage of a function pointer 
-    //You can remove/comment them off 
+    while (scanf("%i %i", &op, &steps) != EOF) {
+        move m = getMove(op - 1);
+        (*m)(p, steps);
 
-    //arithFuncPtr is a function pointer datatype
-    // it points to a function that takes (int, int) as parameter
-    //  and returns int as return result
-    arithFuncPtr ptr;
+        printf("%d %d\n", p->x, p->y);
+    }
 
-    //ptr points to the function "add(int, int)"
-    ptr = add;
-
-    scanf("%i %i", &a, &b);
-
-    //Defereference a function pointer === call the function
-    //if you take (*ptr) as some function f
-    // then below is the same as
-    //   res = f(a, b);
-
-    res = (*ptr)(a, b);
-
-    printf("%i\n", res);
-   
     return 0;
 }
 
-int add(int x, int y)
-{
-    return x + y;
+move getMove(int op) {
+    move moves[4] = { up, down, left, right };
+    return moves[op];
 }
+
+void up(position* p, int steps) {
+    p->y += steps;
+}
+
+void down(position* p, int steps) {
+    p->y -= steps;
+}
+
+void left(position* p, int steps) {
+    p->x -= steps;
+}
+
+void right(position* p, int steps) {
+    p->x += steps;
+}
+
