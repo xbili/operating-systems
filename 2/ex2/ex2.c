@@ -19,7 +19,7 @@ lab machine (Linux on x86)
 int main()
 {
     char path[20];
-    char last[20];
+    char last[20] = "";
 
     // Read user input
     printf("YWIMC > ");
@@ -32,16 +32,12 @@ int main()
         // In real interpreter, a lot more checks are needed
         // E.g. check for file type, execution right etc
 
-        // TODO: Make sure that if there is no last command available, skip
-        // the while-loop
-        if (last[0] != '\0' && strcmp(path, "last") == 0) {
-            strcpy(path, last);
-        } else if (strcmp(path, "last") == 0) {
-            continue;
-        }
-
         if (stat(path, &fileStat) == -1) {
-            printf("%s not found\n", path);
+            if (strcmp(path, "last") == 0) {
+                printf("No previous command available.\n");
+            } else {
+                printf("%s not found\n", path);
+            }
         } else if (S_ISREG(fileStat.st_mode)) {
             // Make sure that found file is a executable process
 
@@ -49,16 +45,25 @@ int main()
             if (childPid != 0) { // Parent
                 waitpid(childPid, NULL, 0);
             } else { // Child
-                execl(path, path);
+                execl(path, path, NULL);
             }
-
-            strcpy(last, path);
         } else {
             printf("%s is not an executable.\n", path);
         }
 
+        // Save previous command only if path is not `last`.
+        // This is done to prevent an infinite loop.
+        if (strcmp(path, "last") != 0) {
+            strcpy(last, path);
+        }
+
         printf("YWIMC > ");
         scanf("%s", path);
+
+        // Checks for the `last` command, and update the path accordingly
+        if (strcmp(path, "last") == 0 && strcmp(last, "") != 0) {
+            strcpy(path, last);
+        }
     }
 
     printf("Goodbye!\n");
