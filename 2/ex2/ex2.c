@@ -16,56 +16,115 @@ lab machine (Linux on x86)
 #include <unistd.h>     //for fork()
 #include <sys/wait.h>   //for wait()
 
+#define NON_EXECUTABLE 1
+#define NOT_FOUND 2
+
+int fileCheck(char *path);
+void readInput(char *path);
+void invalidCommand(char *path);
+void updateCommand(char *path, char *prev);
+void savePrevCommand(char *path, char *prev);
+void spawn(char *path);
+
 int main()
 {
     char path[20];
     char last[20] = "";
 
-    // Read user input
-    printf("YWIMC > ");
-    scanf("%s", path);
-
-    struct stat fileStat;
-    pid_t childPid;
+    readInput(path);
     while (strcmp(path, "quit") != 0) {
         // Check whether file exist
         // In real interpreter, a lot more checks are needed
         // E.g. check for file type, execution right etc
 
-        if (stat(path, &fileStat) == -1) {
-            if (strcmp(path, "last") == 0) {
-                printf("No previous command available.\n");
-            } else {
-                printf("%s not found\n", path);
-            }
-        } else if (S_ISREG(fileStat.st_mode)) {
-            // Make sure that found file is a executable process
-
-            childPid = fork();
-            if (childPid != 0) { // Parent
-                waitpid(childPid, NULL, 0);
-            } else { // Child
-                execl(path, path, NULL);
-            }
-        } else {
-            printf("%s is not an executable.\n", path);
+        int fd = fileCheck(path);
+        switch (fd) {
+            case NON_EXECUTABLE:
+                printf("%s is not an executable.\n", path);
+                break;
+            case NOT_FOUND:
+                invalidCommand(path);
+                break;
+            default:
+                spawn(path);
         }
 
-        // Save previous command only if path is not `last`.
-        // This is done to prevent an infinite loop.
-        if (strcmp(path, "last") != 0) {
-            strcpy(last, path);
-        }
-
-        printf("YWIMC > ");
-        scanf("%s", path);
-
-        // Checks for the `last` command, and update the path accordingly
-        if (strcmp(path, "last") == 0 && strcmp(last, "") != 0) {
-            strcpy(path, last);
-        }
+        savePrevCommand(path, last);
+        readInput(path);
+        updateCommand(path, last);
     }
 
     printf("Goodbye!\n");
     return 0;
 }
+
+void readInput(char *path) {
+    printf("YWIMC > ");
+    scanf("%s", path);
+}
+
+
+/**
+ * Returns the valid file descriptor for the input path.
+ *
+ * Returns:
+ * - NON_EXECUTABLE: if the file is not an executable
+ * - NOT_FOUND: if the file directory does not exist
+ * - 0: if the file exists and can be run
+ */
+int fileCheck(char *path)
+{
+    struct stat fileStat;
+    if (stat(path, &fileStat) == -1) {
+        return NOT_FOUND;
+    }
+
+    if (!S_ISREG(fileStat.st_mode)) {
+        return NON_EXECUTABLE;
+    }
+
+    return 0;
+}
+
+
+void invalidCommand(char *path)
+{
+    if (strcmp(path, "last") == 0) {
+        printf("No previous command available.\n");
+    } else {
+        printf("%s not found\n", path);
+    }
+}
+
+
+void spawn(char *path)
+{
+    pid_t childPid;
+
+    childPid = fork();
+    if (childPid != 0) { // Parent
+        waitpid(childPid, NULL, 0);
+    } else { // Child
+        execl(path, path, NULL);
+    }
+}
+
+
+// Save previous command only if path is not `last`.
+// This is to prevent an infinite loop.
+void savePrevCommand(char *path, char *prev)
+{
+    if (strcmp(path, "last") != 0) {
+        strcpy(prev, path);
+    }
+}
+
+
+// Checks for the `last` command, and update the path accordingly
+void updateCommand(char *path, char *prev)
+{
+    if (strcmp(path, "last") == 0 && strcmp(prev, "") != 0) {
+        strcpy(path, prev);
+    }
+}
+
