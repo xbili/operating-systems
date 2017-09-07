@@ -10,7 +10,7 @@ lab machine (Linux on x86)
 
 #include <stdio.h>
 #include <fcntl.h>      //For stat()
-#include <sys/types.h>   
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>   //for waitpid()
 #include <unistd.h>     //for fork(), wait()
@@ -27,7 +27,7 @@ int main()
 
     //hint: you probably want to find a better way to read the inputs
     //hint 2: the alternative can be found in one of the sample programs
-  
+
     scanf("%s", userInput);
 
     while ( strcmp(userInput, "quit") != 0 ){
@@ -35,7 +35,7 @@ int main()
         printf("YWIMC > ");
         scanf("%s", userInput);
     }
-    
+
     printf("Goodbye!\n");
     return 0;
 
