@@ -90,32 +90,6 @@ void spawn(char *path, char **args, int parallel);
 
 int main()
 {
-    // 1. Splits up the user input into the array of strings
-
-    // 2. Check if path of executable is valid and exists
-    //
-    // 2a. Check if command is to wait for a specific PID. If PID exists
-    // in our PID history, wait for it to complete - BLOCK. Return after
-    // completion
-
-    // 3. Spawns a new process, keep track of the new process ID in a
-    // data structure
-
-    // PARENT
-    //
-    // 4. Check if last argument is a background job request
-    //
-    // If it is: save the PID of child and proceed with next iteration
-    //
-    // If NOT: `wait()` for the PID to finish execution.
-
-    // CHILD
-    //
-    // 4. Execute with `execv()` and the arguments excluding the last
-    // argument if it is background task
-    //
-    // RETURN to prevent fork bomb!
-
     // Entire command as a string
     char command[120];
 
@@ -137,6 +111,9 @@ int main()
 
     readInput(command);
     while (strcmp(command, "quit") != 0) {
+
+        // 1. Splits up the user input into the array of strings
+
         tokens = tokenize(command, 6, 120);
         path = tokens[0];
         parallelFlag = tokens[5] && strcmp(tokens[5], "&") == 0;
@@ -145,6 +122,12 @@ int main()
         for (int i = 1; i < 5; i++) {
             args[i-1] = tokens[i];
         }
+
+        // 2. Check if path of executable is valid and exists
+        //
+        // 2a. Check if command is to wait for a specific PID. If PID exists
+        // in our PID history, wait for it to complete - BLOCK. Return after
+        // completion
 
         // TODO: Change this to make use of function pointers
         int fd = fileCheck(path);
@@ -156,6 +139,8 @@ int main()
                 invalidCommand(command);
                 break;
             default:
+                // 3. Spawns a new process, keep track of the new process ID
+                // in a data structure
                 spawn(command, args, parallelFlag);
         }
 
@@ -313,8 +298,16 @@ void spawn(char *path, char **args, int parallel)
 
     childPid = fork();
     if (childPid != 0) { // Parent
+        // 4. Check if last argument is a background job request
+        //
+        // If it is: save the PID of child and proceed with next iteration
+        //
+        // If NOT: `wait()` for the PID to finish execution.
         waitpid(childPid, NULL, 0);
     } else { // Child
+        //
+        // 4. Execute with `execv()` and the arguments excluding the last
+        // argument if it is background task
         execl(path, path, NULL);
     }
 }
