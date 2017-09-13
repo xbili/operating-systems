@@ -149,7 +149,6 @@ int main()
         for (int i = 0; i < 5; i++) {
             if (tokens[i] && strcmp(tokens[i], "&") == 0) {
                 parallelFlag = 1;
-                args[i] = NULL;
                 break;
             }
 
@@ -162,7 +161,13 @@ int main()
         for (int i = 0; i < 5; i++) {
             printf("%s ", args[i]);
         }
-        printf("Parallel: %d\n", parallelFlag);
+
+        printf("\nTokens: ");
+        for (int i = 0; i < 6; i++) {
+            printf("%s ", tokens[i]);
+        }
+
+        printf("\nParallel: %d\n", parallelFlag);
 
         if (strcmp(path, "wait") == 0) {
             // Check if command is to wait for a specific PID. If PID exists
@@ -201,7 +206,6 @@ int main()
 
         // Free up memory for new tokens
         freeTokensArray(tokens, 6);
-        tokens = NULL;
 
         // Reset parallel flag
         parallelFlag = 0;
@@ -262,16 +266,14 @@ void readInput(char *command)
  */
 char** tokenize(char *command, int numTokens, int tokenSize)
 {
+    char** tokens = (char**) malloc(sizeof(char*) * numTokens);
+
     // Copy so that we don't mutate original command string
-    char* copy = malloc(sizeof(command));
+    char* copy = strdup(command);
 
     const char delim[3] = " ";
     char* tStart;
-    char** tokens;
     int i;
-
-    strcpy(copy, command);
-    tokens = (char**) malloc(sizeof(char*) * numTokens);
 
     // Nullify all entries
     for (i = 0; i < numTokens; i++) {
@@ -293,6 +295,8 @@ char** tokenize(char *command, int numTokens, int tokenSize)
         i++;
         tStart = strtok(NULL, delim);
     }
+
+    free(copy);
 
     return tokens;
 }
