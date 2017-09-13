@@ -1,8 +1,8 @@
 /*************************************
 * Lab 2 Exercise 3
-* Name:
-* Student No:
-* Lab Group:
+* Name: Xu Bili
+* Student No: A0124368A
+* Lab Group: 4
 *************************************
 Warning: Make sure your code works on
 lab machine (Linux on x86)
