@@ -25,10 +25,32 @@ lab machine (Linux on x86)
 #define NON_EXECUTABLE 1
 #define NOT_FOUND 2
 
+/************
+ * TYPEDEFS *
+ ************/
+
+typedef struct NODE{
+    int data;
+    struct NODE* next;
+} node;
+
 
 /*************************
  * FUNCTION DECLARATIONS *
  *************************/
+
+/*************************
+ * LinkedList operations *
+ *************************/
+
+node* addToHead(node* head, int newData);
+int removeFromList(node* head, int value);
+void destroyList(node* head);
+
+
+/********************
+ * Shell operations *
+ ********************/
 
 /**
  * Returns the valid file descriptor for the input path.
@@ -85,11 +107,19 @@ void rememberCommand(char *path, char *prev);
 /**
  * Create a new child process that runs the program located at `path`.
  */
-void spawn(char *path, char **args, int parallel);
+node* spawn(char *path, char **args, int parallel, node* background);
+
+/**
+ * Forces the shell to wait for a child process.
+ */
+void forceWait(pid_t childPid);
 
 
 int main()
 {
+    // Store a LinkedList of background processes
+    node* background = NULL;
+
     // Entire command as a string
     char command[120];
 
@@ -102,57 +132,88 @@ int main()
     // String that represents the path of the executable
     char *path;
 
-    // Argument array, note that this array consists only of POINTERS to the
-    // actual argument
-    char *args[4];
+    // Argument array, including the name of the path as the first argument
+    char *args[5];
 
     // 1 if program is to be run in parallel, otherwise block the shell
     int parallelFlag;
 
     readInput(command);
+
     while (strcmp(command, "quit") != 0) {
-
-        // 1. Splits up the user input into the array of strings
-
+        // Splits up the user input into the array of strings
         tokens = tokenize(command, 6, 120);
         path = tokens[0];
-        parallelFlag = tokens[5] && strcmp(tokens[5], "&") == 0;
 
         // Set index 1 - (size-1) as the arguments
-        for (int i = 1; i < 5; i++) {
-            args[i-1] = tokens[i];
+        for (int i = 0; i < 5; i++) {
+            if (tokens[i] && strcmp(tokens[i], "&") == 0) {
+                parallelFlag = 1;
+                args[i] = NULL;
+                break;
+            }
+
+            args[i] = tokens[i];
         }
 
-        // 2. Check if path of executable is valid and exists
-        //
-        // 2a. Check if command is to wait for a specific PID. If PID exists
-        // in our PID history, wait for it to complete - BLOCK. Return after
-        // completion
-
-        // TODO: Change this to make use of function pointers
-        int fd = fileCheck(path);
-        switch (fd) {
-            case NON_EXECUTABLE:
-                printf("%s is not an executable.\n", command);
-                break;
-            case NOT_FOUND:
-                invalidCommand(command);
-                break;
-            default:
-                // 3. Spawns a new process, keep track of the new process ID
-                // in a data structure
-                spawn(command, args, parallelFlag);
+        // Debug
+        printf("Path: %s\n", path);
+        printf("Args: ");
+        for (int i = 0; i < 5; i++) {
+            printf("%s ", args[i]);
         }
+        printf("Parallel: %d\n", parallelFlag);
 
-        rememberCommand(command, last);
-        readInput(command);
-        checkLast(command, last);
+        if (strcmp(path, "wait") == 0) {
+            // Check if command is to wait for a specific PID. If PID exists
+            // in our PID history, wait for it to complete - BLOCK.
+            pid_t childPid = (int) strtol(args[1], NULL, 10);
+            if (background && removeFromList(background, childPid)) {
+                forceWait(childPid);
+            } else {
+                printf("%d not a valid child pid\n", childPid);
+            }
+        } else if (strcmp(path, "printchild") == 0) {
+            // Print out all background processes
+            printf("Unwaited Child Processes:\n");
+            node* curr = background;
+            while (curr) {
+                printf("%d\n", curr->data);
+                curr = curr->next;
+            }
+        } else {
+            // Check if path of executable is valid and exists
+            // TODO: Change this to make use of function pointers
+            int fd = fileCheck(path);
+            switch (fd) {
+                case NON_EXECUTABLE:
+                    printf("%s is not an executable.\n", command);
+                    break;
+                case NOT_FOUND:
+                    invalidCommand(command);
+                    break;
+                default:
+                    // Spawns a new process, keep track of the new process ID
+                    // in a data structure
+                    background = spawn(path, args, parallelFlag, background);
+            }
+        }
 
         // Free up memory for new tokens
         freeTokensArray(tokens, 6);
         tokens = NULL;
+
+        // Reset parallel flag
+        parallelFlag = 0;
+
+        printf("Remembering command: %s\n", command);
+        rememberCommand(command, last);
+
+        readInput(command);
+        checkLast(command, last);
     }
 
+    destroyList(background);
     printf("Goodbye!\n");
     return 0;
 }
@@ -201,10 +262,15 @@ void readInput(char *command)
  */
 char** tokenize(char *command, int numTokens, int tokenSize)
 {
+    // Copy so that we don't mutate original command string
+    char* copy = malloc(sizeof(command));
+
     const char delim[3] = " ";
-    int i;
     char* tStart;
     char** tokens;
+    int i;
+
+    strcpy(copy, command);
     tokens = (char**) malloc(sizeof(char*) * numTokens);
 
     // Nullify all entries
@@ -212,7 +278,7 @@ char** tokenize(char *command, int numTokens, int tokenSize)
         tokens[i] = NULL;
     }
 
-    tStart = strtok(command, delim);
+    tStart = strtok(copy, delim);
     i = 0;
     while(i < numTokens && tStart) {
         // Allocate space for token string
@@ -291,23 +357,90 @@ void rememberCommand(char *command, char *prev)
 
 /**
  * Spawns a new child process that runs the program located at `path`.
+ *
+ * Returns the number of background processes running
  */
-void spawn(char *path, char **args, int parallel)
+node* spawn(char *path, char **args, int parallel, node* background)
 {
     pid_t childPid;
 
     childPid = fork();
     if (childPid != 0) { // Parent
-        // 4. Check if last argument is a background job request
-        //
-        // If it is: save the PID of child and proceed with next iteration
-        //
-        // If NOT: `wait()` for the PID to finish execution.
-        waitpid(childPid, NULL, 0);
+        if (!parallel) {
+            waitpid(childPid, NULL, 0);
+        } else {
+            background = addToHead(background, childPid);
+        }
     } else { // Child
-        //
-        // 4. Execute with `execv()` and the arguments excluding the last
-        // argument if it is background task
-        execl(path, path, NULL);
+        execv(path, args);
+    }
+
+    return background;
+}
+
+
+/**
+ * Waits for the background process with PID
+ */
+void forceWait(pid_t childPid)
+{
+    waitpid(childPid, NULL, 0);
+}
+
+
+node* addToHead(node* head, int newData)
+{
+    node* added = malloc(sizeof(node));
+    added->data = newData;
+    added->next = head;
+
+    return added;
+}
+
+
+int removeFromList(node* head, int value)
+{
+    if (head->data == value) {
+        // Keep temp variable of the new head
+        node* nxt = head->next;
+
+        // Free up memory
+        free(head);
+
+        // Assign the new head
+        head = nxt;
+
+        return 1;
+    }
+
+    node* curr = head;
+    node* prev = NULL;
+
+    while (curr) {
+        if (curr->data == value) {
+            // Remove the current node
+            prev->next = curr->next;
+
+            // Free up memory
+            free(curr);
+            curr = NULL;
+
+            return 1;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    return 0;
+}
+
+
+void destroyList(node* head)
+{
+    node* curr = head;
+    while (curr) {
+        node* tmp = curr->next;
+        free(curr);
+        curr = tmp;
     }
 }
