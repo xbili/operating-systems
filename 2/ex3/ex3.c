@@ -46,10 +46,16 @@ typedef struct NODE{
 typedef struct CONTEXT {
     char previous[120];
     char tokens[6][120];
-    node* bgProcs;
     int parallel;
+    node* bgProcs;
 } context;
 
+/**
+ * A function type that represents execution of a command.
+ *
+ * Takes in a context and returns null.
+ */
+typedef void (*execute) (context*);
 
 /*************************
  * FUNCTION DECLARATIONS *
@@ -59,6 +65,27 @@ typedef struct CONTEXT {
 /********************
  * Shell operations *
  ********************/
+
+/**
+ * Multiplexes the command into individual functions.
+ */
+execute commandMux(context *ctx);
+
+/**
+ * Wait for child process to finish executing.
+ */
+void waitForChild(context *ctx);
+
+/**
+ * Prints the current background tasks present in the context.
+ */
+void printchild(context *ctx);
+
+/**
+ * Launches the program requested by the user.
+ */
+void launch(context *ctx);
+
 
 /**
  * Tokenizes command and store tokens in shell context.
@@ -192,63 +219,37 @@ int main()
     // Allocate memory for shell context
     context *ctx = malloc(sizeof(context));
 
-    // Store a LinkedList of background processes
-    node* bgProcs = NULL;
-
     // Entire command as a string
     char command[120];
+
+    // Action to take
+    execute action;
 
     readInput(command);
     while (strcmp(command, "quit") != 0) {
         checkPrevious(ctx, command);
+
         setTokens(ctx, command);
         setParallelFlag(ctx);
 
-        if (strcmp(ctx->tokens[0], "wait") == 0) {
-            // Check if command is to wait for a specific PID. If PID exists
-            // in our PID history, wait for it to complete - BLOCK.
-            pid_t childPid = (int) strtol(ctx->tokens[1], NULL, 10);
-            if (isBackgroundTask(ctx, childPid)) {
-                forceWait(childPid);
-                removeBackgroundTask(ctx, childPid);
-            } else {
-                printf("%d not a valid child pid\n", childPid);
-            }
-        } else if (strcmp(ctx->tokens[0], "printchild") == 0) {
-            // Print out all background processes
-            printf("Unwaited Child Processes:\n");
-            node* curr = ctx->bgProcs;
-            while (curr) {
-                printf("%d\n", curr->data);
-                curr = curr->next;
-            }
-        } else {
-            // Check if path of executable is valid and exists
-            // TODO: Change this to make use of function pointers
-            int fd = fileCheck(ctx->tokens[0]);
-            switch (fd) {
-                case NON_EXECUTABLE:
-                    printf("%s is not an executable.\n", command);
-                    break;
-                case NOT_FOUND:
-                    invalidCommand(command);
-                    break;
-                default:
-                    // Spawns a new process, keep track of the new process ID
-                    // in a data structure
-                    spawn(ctx);
-            }
-        }
+        // Get the appropriate action (as a function ptr) and run it
+        action = commandMux(ctx);
+        (*action)(ctx);
 
+        // Reset context
         resetParallelFlag(ctx);
         resetTokens(ctx);
+
         rememberCommand(ctx, command);
+
+        // Next input
         readInput(command);
     }
 
-    destroyList(bgProcs);
-    freeContext(ctx);
     printf("Goodbye!\n");
+
+    // Clean up
+    freeContext(ctx);
 
     return 0;
 }
@@ -256,6 +257,76 @@ int main()
 /***************************
  * FUNCTION IMPLEMENTATION *
  ***************************/
+
+/**
+ * Multiplexes the command to return different execution implementations.
+ *
+ * Returns a function pointer to an `execute` function.
+ */
+execute commandMux(context *ctx)
+{
+    char *path = ctx->tokens[0];
+    if (strcmp(path, "wait") == 0) {
+        return waitForChild;
+    } else if (strcmp(path, "printchild") == 0) {
+        return printchild;
+    } else {
+        return launch;
+    }
+}
+
+
+/**
+ * Wait for child process to finish executing.
+ */
+void waitForChild(context *ctx)
+{
+    // Check if command is to wait for a specific PID. If PID exists
+    // in our PID history, wait for it to complete - BLOCK.
+    pid_t childPid = (int) strtol(ctx->tokens[1], NULL, 10);
+    if (isBackgroundTask(ctx, childPid)) {
+        forceWait(childPid);
+        removeBackgroundTask(ctx, childPid);
+    } else {
+        printf("%d not a valid child pid\n", childPid);
+    }
+}
+
+
+/**
+ * Prints the current background tasks present in the context.
+ */
+void printchild(context *ctx)
+{
+    // Print out all background processes
+    printf("Unwaited Child Processes:\n");
+    node* curr = ctx->bgProcs;
+    while (curr) {
+        printf("%d\n", curr->data);
+        curr = curr->next;
+    }
+}
+
+
+/**
+ * Launches the program requested by the user.
+ */
+void launch(context *ctx)
+{
+    // Check if path of executable is valid and exists
+    int fd = fileCheck(ctx->tokens[0]);
+    switch (fd) {
+        case NON_EXECUTABLE:
+            printf("%s is not an executable.\n", ctx->tokens[0]);
+            break;
+        case NOT_FOUND:
+            invalidCommand(ctx->tokens[0]);
+            break;
+        default:
+            spawn(ctx);
+    }
+}
+
 
 /**
  * Tokenizes and saves tokens into shell context.
