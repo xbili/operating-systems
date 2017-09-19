@@ -498,7 +498,7 @@ void spawn(context *ctx)
     } else { // Child
         char *args[5];
         for (int i = 0; i < 5; i++) {
-            if (strcmp(ctx->tokens[i], "") == 0 || strcmp(ctx->tokens[i], "&")) {
+            if (strcmp(ctx->tokens[i], "") == 0 || strcmp(ctx->tokens[i], "&") == 0) {
                 args[i] = NULL; // Nullify empty strings or parallel token
             } else {
                 args[i] = ctx->tokens[i];
