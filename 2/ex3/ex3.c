@@ -96,6 +96,17 @@ void setParallelFlag(context *ctx);
 void resetParallelFlag(context *ctx);
 
 /**
+ * Saves command executed as previous command in shell context
+ */
+void rememberCommand(context *ctx, char *command);
+
+/**
+ * Parses the command input by the user, transforming the command if
+ * necessary.
+ */
+void checkPrevious(context *ctx, char *command);
+
+/**
  * Frees up memory used by the shell context.
  */
 void freeContext(context *ctx);
@@ -140,17 +151,6 @@ void freeTokensArray(char **tokens, int size);
  * Handles an invalid command
  */
 void invalidCommand(char *path);
-
-/**
- * Parses the command input by the user, transforming the command if
- * necessary.
- */
-void checkLast(char *path, char *prev);
-
-/**
- * Saves the previous command for use if `last` is invoked.
- */
-void rememberCommand(char *path, char *prev);
 
 /**
  * Create a new child process given the current shell context.
@@ -198,11 +198,9 @@ int main()
     // Entire command as a string
     char command[120];
 
-    // Previous command
-    char last[120] = "";
-
     readInput(command);
     while (strcmp(command, "quit") != 0) {
+        checkPrevious(ctx, command);
         setTokens(ctx, command);
         setParallelFlag(ctx);
 
@@ -244,10 +242,8 @@ int main()
 
         resetParallelFlag(ctx);
         resetTokens(ctx);
-
-        rememberCommand(command, last);
+        rememberCommand(ctx, command);
         readInput(command);
-        checkLast(command, last);
     }
 
     destroyList(bgProcs);
@@ -453,28 +449,28 @@ void invalidCommand(char *command)
 
 
 /**
+ * Saves user's previous command only if command is not `last`. This is to prevent
+ * an infinite loop.
+ */
+void rememberCommand(context *ctx, char *command)
+{
+    if (strcmp(command, "last") != 0) {
+        strcpy(ctx->previous, command);
+    }
+}
+
+
+/**
  * Checks for the `last` command, we do not update the command unless `last`
  * is invoked.
  *
  * If `last` is invoked, we will update our current command to that of the
  * previous command that we input into the interpreter.
  */
-void checkLast(char *command, char *prev)
+void checkPrevious(context *ctx, char *command)
 {
-    if (strcmp(command, "last") == 0 && strcmp(prev, "") != 0) {
-        strcpy(command, prev);
-    }
-}
-
-
-/**
- * Saves user's previous command only if command is not `last`. This is to prevent
- * an infinite loop.
- */
-void rememberCommand(char *command, char *prev)
-{
-    if (strcmp(command, "last") != 0) {
-        strcpy(prev, command);
+    if (strcmp(command, "last") == 0 && strcmp(ctx->previous, "") != 0) {
+        strcpy(command, ctx->previous);
     }
 }
 
