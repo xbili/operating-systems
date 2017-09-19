@@ -43,11 +43,11 @@ typedef struct NODE{
  * - tokens: parsed tokens of the command, array of size 6
  * - bgProcs: linked list of background processes
  */
-typedef struct STATE {
-    char *previous;
-    char **tokens;
-    node* bgProces;
-} state;
+typedef struct CONTEXT {
+    char previous[120];
+    char tokens[6][120];
+    node* bgProcs;
+} context;
 
 
 /*************************
@@ -58,6 +58,16 @@ typedef struct STATE {
 /********************
  * Shell operations *
  ********************/
+
+/**
+ * Tokenizes command and store tokens in shell context.
+ */
+void setTokens(context *ctx, char *command);
+
+/**
+ * Frees up memory used by the shell context.
+ */
+void freeContext(context *ctx);
 
 /**
  * Returns the valid file descriptor for the input path.
@@ -148,6 +158,9 @@ void debugInput(char *path, char **args, char **tokens, int parallelFlag);
 
 int main()
 {
+    // Allocate memory for shell context
+    context *ctx = malloc(sizeof(context));
+
     // Store a LinkedList of background processes
     node* bgProcs = NULL;
 
@@ -156,9 +169,6 @@ int main()
 
     // Previous command
     char last[120] = "";
-
-    // Tokenized command, delimited by whitespace
-    char** tokens;
 
     // String that represents the path of the executable
     char *path;
@@ -172,22 +182,18 @@ int main()
     readInput(command);
 
     while (strcmp(command, "quit") != 0) {
-        // Splits up the user input into the array of strings
-        tokens = tokenize(command, 6, 120);
-        path = tokens[0];
+        setTokens(ctx, command);
+        path = ctx->tokens[0];
 
         // Set index 1 - (size-1) as the arguments
         for (int i = 0; i < 5; i++) {
-            if (tokens[i] && strcmp(tokens[i], "&") == 0) {
+            if (ctx->tokens[i] && strcmp(ctx->tokens[i], "&") == 0) {
                 parallelFlag = 1;
                 break;
             }
 
-            args[i] = tokens[i];
+            args[i] = ctx->tokens[i];
         }
-
-        // Debug
-        debugInput(path, args, tokens, parallelFlag);
 
         if (strcmp(path, "wait") == 0) {
             // Check if command is to wait for a specific PID. If PID exists
@@ -225,9 +231,6 @@ int main()
             }
         }
 
-        // Free up memory for new tokens
-        freeTokensArray(tokens, 6);
-
         // Reset parallel flag
         parallelFlag = 0;
 
@@ -237,6 +240,7 @@ int main()
     }
 
     destroyList(bgProcs);
+    freeContext(ctx);
     printf("Goodbye!\n");
     return 0;
 }
@@ -244,6 +248,28 @@ int main()
 /***************************
  * FUNCTION IMPLEMENTATION *
  ***************************/
+
+/**
+ * Tokenizes and saves tokens into shell context.
+ */
+void setTokens(context *ctx, char *command)
+{
+    char **tokens = tokenize(command, 6, 120);
+    for (int i = 0; i < 6; i++) {
+        if (tokens[i] == NULL) continue;
+        strcpy(ctx->tokens[i], tokens[i]);
+    }
+    freeTokensArray(tokens, 6);
+}
+
+/**
+ * Frees up memory allocated to the shell context.
+ */
+void freeContext(context *ctx)
+{
+    destroyList(ctx->bgProcs);
+    free(ctx);
+}
 
 /**
  * Returns the valid file descriptor for the path of the executable.
@@ -396,6 +422,12 @@ node* spawn(char *path, char **args, int parallel, node* bgProcs)
             bgProcs = addToHead(bgProcs, childPid);
         }
     } else { // Child
+        // Nullify empty strings
+        for (int i = 0; i < 5; i++) {
+            if (strcmp(args[i], "") == 0) {
+                args[i] = NULL;
+            }
+        }
         execv(path, args);
     }
 
