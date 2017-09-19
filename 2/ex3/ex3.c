@@ -201,17 +201,12 @@ int main()
     // Previous command
     char last[120] = "";
 
-    // String that represents the path of the executable
-    char *path;
-
     readInput(command);
-
     while (strcmp(command, "quit") != 0) {
         setTokens(ctx, command);
         setParallelFlag(ctx);
-        path = ctx->tokens[0];
 
-        if (strcmp(path, "wait") == 0) {
+        if (strcmp(ctx->tokens[0], "wait") == 0) {
             // Check if command is to wait for a specific PID. If PID exists
             // in our PID history, wait for it to complete - BLOCK.
             pid_t childPid = (int) strtol(ctx->tokens[1], NULL, 10);
@@ -221,7 +216,7 @@ int main()
             } else {
                 printf("%d not a valid child pid\n", childPid);
             }
-        } else if (strcmp(path, "printchild") == 0) {
+        } else if (strcmp(ctx->tokens[0], "printchild") == 0) {
             // Print out all background processes
             printf("Unwaited Child Processes:\n");
             node* curr = bgProcs;
@@ -232,7 +227,7 @@ int main()
         } else {
             // Check if path of executable is valid and exists
             // TODO: Change this to make use of function pointers
-            int fd = fileCheck(path);
+            int fd = fileCheck(ctx->tokens[0]);
             switch (fd) {
                 case NON_EXECUTABLE:
                     printf("%s is not an executable.\n", command);
