@@ -199,7 +199,6 @@ int main()
         setParallelFlag(ctx);
         path = ctx->tokens[0];
 
-        // Set index 1 - (size-1) as the arguments
         for (int i = 0; i < 5; i++) {
             args[i] = ctx->tokens[i];
         }
@@ -207,7 +206,7 @@ int main()
         if (strcmp(path, "wait") == 0) {
             // Check if command is to wait for a specific PID. If PID exists
             // in our PID history, wait for it to complete - BLOCK.
-            pid_t childPid = (int) strtol(args[1], NULL, 10);
+            pid_t childPid = (int) strtol(ctx->tokens[1], NULL, 10);
             if (exists(bgProcs, childPid)) {
                 forceWait(childPid);
                 bgProcs = removeFromList(bgProcs, childPid);
