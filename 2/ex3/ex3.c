@@ -47,6 +47,7 @@ typedef struct CONTEXT {
     char previous[120];
     char tokens[6][120];
     node* bgProcs;
+    int parallel;
 } context;
 
 
@@ -63,6 +64,21 @@ typedef struct CONTEXT {
  * Tokenizes command and store tokens in shell context.
  */
 void setTokens(context *ctx, char *command);
+
+/**
+ * Resets the tokens in the shell context.
+ */
+void resetTokens(context *ctx);
+
+/**
+ * Sets the parallel flag inside shell context.
+ */
+void setParallelFlag(context *ctx);
+
+/**
+ * Resets the parallel flag of a shell context.
+ */
+void resetParallelFlag(context *ctx);
 
 /**
  * Frees up memory used by the shell context.
@@ -176,22 +192,15 @@ int main()
     // Argument array, including the name of the path as the first argument
     char *args[5];
 
-    // 1 if program is to be run in parallel, otherwise block the shell
-    int parallelFlag = 0;
-
     readInput(command);
 
     while (strcmp(command, "quit") != 0) {
         setTokens(ctx, command);
+        setParallelFlag(ctx);
         path = ctx->tokens[0];
 
         // Set index 1 - (size-1) as the arguments
         for (int i = 0; i < 5; i++) {
-            if (ctx->tokens[i] && strcmp(ctx->tokens[i], "&") == 0) {
-                parallelFlag = 1;
-                break;
-            }
-
             args[i] = ctx->tokens[i];
         }
 
@@ -227,12 +236,12 @@ int main()
                 default:
                     // Spawns a new process, keep track of the new process ID
                     // in a data structure
-                    bgProcs = spawn(path, args, parallelFlag, bgProcs);
+                    bgProcs = spawn(path, args, ctx->parallel, bgProcs);
             }
         }
 
-        // Reset parallel flag
-        parallelFlag = 0;
+        resetParallelFlag(ctx);
+        resetTokens(ctx);
 
         rememberCommand(command, last);
         readInput(command);
@@ -260,6 +269,37 @@ void setTokens(context *ctx, char *command)
         strcpy(ctx->tokens[i], tokens[i]);
     }
     freeTokensArray(tokens, 6);
+}
+
+/**
+ * Resets the tokens in the shell context.
+ */
+void resetTokens(context *ctx)
+{
+    for (int i = 0; i < 6; i++) {
+        ctx->tokens[i][0] = '\0';
+    }
+}
+
+/**
+ * Set parallel flag in a context.
+ */
+void setParallelFlag(context *ctx)
+{
+    for (int i = 0; i < 5; i++) {
+        if (ctx->tokens[i] && strcmp(ctx->tokens[i], "&") == 0) {
+            ctx->parallel = 1;
+            return;
+        }
+    }
+}
+
+/**
+ * Resets the parallel flag of a shell context.
+ */
+void resetParallelFlag(context *ctx)
+{
+    ctx->parallel = 0;
 }
 
 /**
