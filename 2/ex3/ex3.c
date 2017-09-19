@@ -219,7 +219,7 @@ int main()
         } else if (strcmp(ctx->tokens[0], "printchild") == 0) {
             // Print out all background processes
             printf("Unwaited Child Processes:\n");
-            node* curr = bgProcs;
+            node* curr = ctx->bgProcs;
             while (curr) {
                 printf("%d\n", curr->data);
                 curr = curr->next;
