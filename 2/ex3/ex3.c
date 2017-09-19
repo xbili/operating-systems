@@ -421,9 +421,9 @@ void freeContext(context *ctx)
 }
 
 
-/*************************
- * Linked List functions *
- *************************/
+/************************
+ * LINKEDLIST FUNCTIONS *
+ ************************/
 
 node* addToHead(node* head, int newData)
 {
