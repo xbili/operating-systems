@@ -71,6 +71,21 @@ void setTokens(context *ctx, char *command);
 void resetTokens(context *ctx);
 
 /**
+ * Returns true if the PID is a background task in the shell context.
+ */
+int isBackgroundTask(context *ctx, pid_t pid);
+
+/**
+ * Adds a background task PID into shell context.
+ */
+void addBackgroundTask(context *ctx, pid_t pid);
+
+/**
+ * Removes a background task PID from the shell context.
+ */
+void removeBackgroundTask(context *ctx, pid_t pid);
+
+/**
  * Sets the parallel flag inside shell context.
  */
 void setParallelFlag(context *ctx);
@@ -138,9 +153,9 @@ void checkLast(char *path, char *prev);
 void rememberCommand(char *path, char *prev);
 
 /**
- * Create a new child process that runs the program located at `path`.
+ * Create a new child process given the current shell context.
  */
-node* spawn(char *path, char **args, int parallel, node* bgProcs);
+void spawn(context *ctx);
 
 /**
  * Forces the shell to wait for a child process.
@@ -189,9 +204,6 @@ int main()
     // String that represents the path of the executable
     char *path;
 
-    // Argument array, including the name of the path as the first argument
-    char *args[5];
-
     readInput(command);
 
     while (strcmp(command, "quit") != 0) {
@@ -199,17 +211,13 @@ int main()
         setParallelFlag(ctx);
         path = ctx->tokens[0];
 
-        for (int i = 0; i < 5; i++) {
-            args[i] = ctx->tokens[i];
-        }
-
         if (strcmp(path, "wait") == 0) {
             // Check if command is to wait for a specific PID. If PID exists
             // in our PID history, wait for it to complete - BLOCK.
             pid_t childPid = (int) strtol(ctx->tokens[1], NULL, 10);
-            if (exists(bgProcs, childPid)) {
+            if (isBackgroundTask(ctx, childPid)) {
                 forceWait(childPid);
-                bgProcs = removeFromList(bgProcs, childPid);
+                removeBackgroundTask(ctx, childPid);
             } else {
                 printf("%d not a valid child pid\n", childPid);
             }
@@ -235,7 +243,7 @@ int main()
                 default:
                     // Spawns a new process, keep track of the new process ID
                     // in a data structure
-                    bgProcs = spawn(path, args, ctx->parallel, bgProcs);
+                    spawn(ctx);
             }
         }
 
@@ -250,6 +258,7 @@ int main()
     destroyList(bgProcs);
     freeContext(ctx);
     printf("Goodbye!\n");
+
     return 0;
 }
 
@@ -278,6 +287,38 @@ void resetTokens(context *ctx)
     for (int i = 0; i < 6; i++) {
         ctx->tokens[i][0] = '\0';
     }
+}
+
+/**
+ * Returns true if the PID is a background task in the shell context.
+ */
+int isBackgroundTask(context *ctx, pid_t pid)
+{
+    return exists(ctx->bgProcs, pid);
+}
+
+/**
+ * Adds a background task PID into shell context.
+ */
+void addBackgroundTask(context *ctx, pid_t pid)
+{
+    // Add the PID as a node in the linked list of PIDs
+    ctx->bgProcs = addToHead(ctx->bgProcs, pid);
+}
+
+/**
+ * Removes a background task PID from the shell context.
+ */
+void removeBackgroundTask(context *ctx, pid_t pid)
+{
+    // Defend against invalid PIDs, this check should be done before this
+    // method is called, but for good measure, let's check it here again.
+    if (!exists(ctx->bgProcs, pid)) {
+        return;
+    }
+
+    // Removes the background task PID from the linked list of PIDs
+    ctx->bgProcs = removeFromList(ctx->bgProcs, pid);
 }
 
 /**
@@ -448,29 +489,29 @@ void rememberCommand(char *command, char *prev)
  *
  * Returns the linked list of background processes running
  */
-node* spawn(char *path, char **args, int parallel, node* bgProcs)
+void spawn(context *ctx)
 {
     pid_t childPid;
-
     childPid = fork();
     if (childPid != 0) { // Parent
-        if (!parallel) {
+        if (!ctx->parallel) {
             waitpid(childPid, NULL, 0);
         } else {
             printf("Child %d in background\n", childPid);
-            bgProcs = addToHead(bgProcs, childPid);
+            addBackgroundTask(ctx, childPid);
         }
     } else { // Child
-        // Nullify empty strings
+        char *args[5];
         for (int i = 0; i < 5; i++) {
-            if (strcmp(args[i], "") == 0) {
-                args[i] = NULL;
+            if (strcmp(ctx->tokens[i], "") == 0 || strcmp(ctx->tokens[i], "&")) {
+                args[i] = NULL; // Nullify empty strings or parallel token
+            } else {
+                args[i] = ctx->tokens[i];
             }
         }
-        execv(path, args);
-    }
 
-    return bgProcs;
+        execv(ctx->tokens[0], args);
+    }
 }
 
 
