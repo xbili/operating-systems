@@ -57,13 +57,9 @@ typedef struct CONTEXT {
  */
 typedef void (*execute) (context*);
 
-/*************************
- * FUNCTION DECLARATIONS *
- *************************/
-
 
 /********************
- * Shell operations *
+ * EXECUTE COMMANDS *
  ********************/
 
 /**
@@ -86,6 +82,15 @@ void printchild(context *ctx);
  */
 void launch(context *ctx);
 
+
+/***************************
+ * SHELL CONTEXT FUNCTIONS *
+ ***************************/
+
+/**
+ * Create a new child process given the current shell context.
+ */
+void spawn(context *ctx);
 
 /**
  * Tokenizes command and store tokens in shell context.
@@ -138,11 +143,23 @@ void checkPrevious(context *ctx, char *command);
  */
 void freeContext(context *ctx);
 
+
+/*************************
+ * LINKEDLIST OPERATIONS *
+ *************************/
+
+node* addToHead(node* head, int newData);
+node* removeFromList(node* head, int value);
+void destroyList(node* head);
+int exists(node* head, int value);
+
+
+/***********
+ * HELPERS *
+ ***********/
+
 /**
  * Returns the valid file descriptor for the input path.
- *
- * TODO: The return result for this function can be abstracted into an enum for
- * better clarity.
  *
  * Returns:
  * - NON_EXECUTABLE: if the file is not an executable
@@ -180,32 +197,17 @@ void freeTokensArray(char **tokens, int size);
 void invalidCommand(char *path);
 
 /**
- * Create a new child process given the current shell context.
- */
-void spawn(context *ctx);
-
-/**
  * Forces the shell to wait for a child process.
  */
 void forceWait(pid_t childPid);
 
 
-/*************************
- * LinkedList operations *
- *************************/
-
-node* addToHead(node* head, int newData);
-node* removeFromList(node* head, int value);
-void destroyList(node* head);
-int exists(node* head, int value);
-
-
 /*********
- * Debug *
+ * DEBUG *
  *********/
 
 /**
- * Prints out on screen information about the current shell context
+ * Prints out on screen information about the current shell context.
  */
 void debugContext(context *ctx);
 
@@ -227,6 +229,7 @@ int main()
 
     readInput(command);
     while (strcmp(command, "quit") != 0) {
+        // Checks if user is asking to run the previous command
         checkPrevious(ctx, command);
 
         setTokens(ctx, command);
@@ -254,9 +257,10 @@ int main()
     return 0;
 }
 
-/***************************
- * FUNCTION IMPLEMENTATION *
- ***************************/
+
+/********************
+ * EXECUTE COMMANDS *
+ ********************/
 
 /**
  * Multiplexes the command to return different execution implementations.
@@ -274,7 +278,6 @@ execute commandMux(context *ctx)
         return launch;
     }
 }
-
 
 /**
  * Wait for child process to finish executing.
@@ -327,6 +330,10 @@ void launch(context *ctx)
     }
 }
 
+
+/***************************
+ * SHELL CONTEXT FUNCTIONS *
+ ***************************/
 
 /**
  * Tokenizes and saves tokens into shell context.
@@ -412,6 +419,82 @@ void freeContext(context *ctx)
     destroyList(ctx->bgProcs);
     free(ctx);
 }
+
+
+/*************************
+ * Linked List functions *
+ *************************/
+
+node* addToHead(node* head, int newData)
+{
+    node* added = malloc(sizeof(node));
+    added->data = newData;
+    added->next = head;
+
+    return added;
+}
+
+// Returns 1 if value exists in linked list
+int exists(node* head, int value)
+{
+    node* curr = head;
+    while (curr) {
+        if (curr->data == value) {
+            return 1;
+        }
+        curr = curr->next;
+    }
+    return 0;
+}
+
+node* removeFromList(node* head, int value)
+{
+    if (head->data == value) {
+        // Keep temp variable of the new head
+        node* nxt = head->next;
+
+        // Free up memory
+        free(head);
+        head = NULL;
+
+        return nxt;
+    }
+
+    node* curr = head;
+    node* prev = NULL;
+
+    while (curr) {
+        if (curr->data == value) {
+            // Remove the current node
+            prev->next = curr->next;
+
+            // Free up memory
+            free(curr);
+            curr = NULL;
+
+            return head;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    return head;
+}
+
+void destroyList(node* head)
+{
+    node* curr = head;
+    while (curr) {
+        node* tmp = curr->next;
+        free(curr);
+        curr = tmp;
+    }
+}
+
+
+/***********
+ * HELPERS *
+ ***********/
 
 /**
  * Returns the valid file descriptor for the path of the executable.
@@ -505,7 +588,6 @@ void freeTokensArray(char **tokens, int size) {
     // Caller needs to set tokens to NULL
 }
 
-
 /**
  * Handles an invalid command
  */
@@ -518,65 +600,6 @@ void invalidCommand(char *command)
     }
 }
 
-
-/**
- * Saves user's previous command only if command is not `last`. This is to prevent
- * an infinite loop.
- */
-void rememberCommand(context *ctx, char *command)
-{
-    if (strcmp(command, "last") != 0) {
-        strcpy(ctx->previous, command);
-    }
-}
-
-
-/**
- * Checks for the `last` command, we do not update the command unless `last`
- * is invoked.
- *
- * If `last` is invoked, we will update our current command to that of the
- * previous command that we input into the interpreter.
- */
-void checkPrevious(context *ctx, char *command)
-{
-    if (strcmp(command, "last") == 0 && strcmp(ctx->previous, "") != 0) {
-        strcpy(command, ctx->previous);
-    }
-}
-
-
-/**
- * Spawns a new child process that runs the program located at `path`.
- *
- * Returns the linked list of background processes running
- */
-void spawn(context *ctx)
-{
-    pid_t childPid;
-    childPid = fork();
-    if (childPid != 0) { // Parent
-        if (!ctx->parallel) {
-            waitpid(childPid, NULL, 0);
-        } else {
-            printf("Child %d in background\n", childPid);
-            addBackgroundTask(ctx, childPid);
-        }
-    } else { // Child
-        char *args[5];
-        for (int i = 0; i < 5; i++) {
-            if (strcmp(ctx->tokens[i], "") == 0 || strcmp(ctx->tokens[i], "&") == 0) {
-                args[i] = NULL; // Nullify empty strings or parallel token
-            } else {
-                args[i] = ctx->tokens[i];
-            }
-        }
-
-        execv(ctx->tokens[0], args);
-    }
-}
-
-
 /**
  * Waits for the background process with PID
  */
@@ -585,79 +608,6 @@ void forceWait(pid_t childPid)
     waitpid(childPid, NULL, 0);
 }
 
-
-/*************************
- * Linked List functions *
- *************************/
-
-node* addToHead(node* head, int newData)
-{
-    node* added = malloc(sizeof(node));
-    added->data = newData;
-    added->next = head;
-
-    return added;
-}
-
-
-// Returns 1 if value exists in linked list
-int exists(node* head, int value)
-{
-    node* curr = head;
-    while (curr) {
-        if (curr->data == value) {
-            return 1;
-        }
-        curr = curr->next;
-    }
-    return 0;
-}
-
-
-node* removeFromList(node* head, int value)
-{
-    if (head->data == value) {
-        // Keep temp variable of the new head
-        node* nxt = head->next;
-
-        // Free up memory
-        free(head);
-        head = NULL;
-
-        return nxt;
-    }
-
-    node* curr = head;
-    node* prev = NULL;
-
-    while (curr) {
-        if (curr->data == value) {
-            // Remove the current node
-            prev->next = curr->next;
-
-            // Free up memory
-            free(curr);
-            curr = NULL;
-
-            return head;
-        }
-        prev = curr;
-        curr = curr->next;
-    }
-
-    return head;
-}
-
-
-void destroyList(node* head)
-{
-    node* curr = head;
-    while (curr) {
-        node* tmp = curr->next;
-        free(curr);
-        curr = tmp;
-    }
-}
 
 /*********
  * DEBUG *
