@@ -29,23 +29,30 @@ lab machine (Linux on x86)
  * TYPEDEFS *
  ************/
 
+// A single linked list node
 typedef struct NODE{
     int data;
     struct NODE* next;
 } node;
 
+/**
+ * Encapsulates the current state of the shell.
+ *
+ * Contains information about:
+ * - previous: previous command string input by user
+ * - tokens: parsed tokens of the command, array of size 6
+ * - bgProcs: linked list of background processes
+ */
+typedef struct STATE {
+    char *previous;
+    char **tokens;
+    node* bgProces;
+} state;
+
 
 /*************************
  * FUNCTION DECLARATIONS *
  *************************/
-
-/*************************
- * LinkedList operations *
- *************************/
-
-node* addToHead(node* head, int newData);
-int removeFromList(node* head, int value);
-void destroyList(node* head);
 
 
 /********************
@@ -107,7 +114,7 @@ void rememberCommand(char *path, char *prev);
 /**
  * Create a new child process that runs the program located at `path`.
  */
-node* spawn(char *path, char **args, int parallel, node* background);
+node* spawn(char *path, char **args, int parallel, node* bgProcs);
 
 /**
  * Forces the shell to wait for a child process.
@@ -115,10 +122,34 @@ node* spawn(char *path, char **args, int parallel, node* background);
 void forceWait(pid_t childPid);
 
 
+/*************************
+ * LinkedList operations *
+ *************************/
+
+node* addToHead(node* head, int newData);
+node* removeFromList(node* head, int value);
+void destroyList(node* head);
+int exists(node* head, int value);
+
+
+/*********
+ * Debug *
+ *********/
+
+/**
+ * Prints out on screen information about the current user input
+ */
+void debugInput(char *path, char **args, char **tokens, int parallelFlag);
+
+
+/********
+ * MAIN *
+ ********/
+
 int main()
 {
     // Store a LinkedList of background processes
-    node* background = NULL;
+    node* bgProcs = NULL;
 
     // Entire command as a string
     char command[120];
@@ -136,7 +167,7 @@ int main()
     char *args[5];
 
     // 1 if program is to be run in parallel, otherwise block the shell
-    int parallelFlag;
+    int parallelFlag = 0;
 
     readInput(command);
 
@@ -156,32 +187,22 @@ int main()
         }
 
         // Debug
-        printf("Path: %s\n", path);
-        printf("Args: ");
-        for (int i = 0; i < 5; i++) {
-            printf("%s ", args[i]);
-        }
-
-        printf("\nTokens: ");
-        for (int i = 0; i < 6; i++) {
-            printf("%s ", tokens[i]);
-        }
-
-        printf("\nParallel: %d\n", parallelFlag);
+        debugInput(path, args, tokens, parallelFlag);
 
         if (strcmp(path, "wait") == 0) {
             // Check if command is to wait for a specific PID. If PID exists
             // in our PID history, wait for it to complete - BLOCK.
             pid_t childPid = (int) strtol(args[1], NULL, 10);
-            if (background && removeFromList(background, childPid)) {
+            if (exists(bgProcs, childPid)) {
                 forceWait(childPid);
+                bgProcs = removeFromList(bgProcs, childPid);
             } else {
                 printf("%d not a valid child pid\n", childPid);
             }
         } else if (strcmp(path, "printchild") == 0) {
             // Print out all background processes
             printf("Unwaited Child Processes:\n");
-            node* curr = background;
+            node* curr = bgProcs;
             while (curr) {
                 printf("%d\n", curr->data);
                 curr = curr->next;
@@ -200,7 +221,7 @@ int main()
                 default:
                     // Spawns a new process, keep track of the new process ID
                     // in a data structure
-                    background = spawn(path, args, parallelFlag, background);
+                    bgProcs = spawn(path, args, parallelFlag, bgProcs);
             }
         }
 
@@ -210,14 +231,12 @@ int main()
         // Reset parallel flag
         parallelFlag = 0;
 
-        printf("Remembering command: %s\n", command);
         rememberCommand(command, last);
-
         readInput(command);
         checkLast(command, last);
     }
 
-    destroyList(background);
+    destroyList(bgProcs);
     printf("Goodbye!\n");
     return 0;
 }
@@ -362,9 +381,9 @@ void rememberCommand(char *command, char *prev)
 /**
  * Spawns a new child process that runs the program located at `path`.
  *
- * Returns the number of background processes running
+ * Returns the linked list of background processes running
  */
-node* spawn(char *path, char **args, int parallel, node* background)
+node* spawn(char *path, char **args, int parallel, node* bgProcs)
 {
     pid_t childPid;
 
@@ -373,13 +392,14 @@ node* spawn(char *path, char **args, int parallel, node* background)
         if (!parallel) {
             waitpid(childPid, NULL, 0);
         } else {
-            background = addToHead(background, childPid);
+            printf("Child %d in background\n", childPid);
+            bgProcs = addToHead(bgProcs, childPid);
         }
     } else { // Child
         execv(path, args);
     }
 
-    return background;
+    return bgProcs;
 }
 
 
@@ -392,6 +412,10 @@ void forceWait(pid_t childPid)
 }
 
 
+/*************************
+ * Linked List functions *
+ *************************/
+
 node* addToHead(node* head, int newData)
 {
     node* added = malloc(sizeof(node));
@@ -402,7 +426,21 @@ node* addToHead(node* head, int newData)
 }
 
 
-int removeFromList(node* head, int value)
+// Returns 1 if value exists in linked list
+int exists(node* head, int value)
+{
+    node* curr = head;
+    while (curr) {
+        if (curr->data == value) {
+            return 1;
+        }
+        curr = curr->next;
+    }
+    return 0;
+}
+
+
+node* removeFromList(node* head, int value)
 {
     if (head->data == value) {
         // Keep temp variable of the new head
@@ -410,11 +448,9 @@ int removeFromList(node* head, int value)
 
         // Free up memory
         free(head);
+        head = NULL;
 
-        // Assign the new head
-        head = nxt;
-
-        return 1;
+        return nxt;
     }
 
     node* curr = head;
@@ -429,13 +465,13 @@ int removeFromList(node* head, int value)
             free(curr);
             curr = NULL;
 
-            return 1;
+            return head;
         }
         prev = curr;
         curr = curr->next;
     }
 
-    return 0;
+    return head;
 }
 
 
@@ -447,4 +483,24 @@ void destroyList(node* head)
         free(curr);
         curr = tmp;
     }
+}
+
+/*****************
+ * Debug helpers *
+ *****************/
+
+void debugInput(char *path, char **args, char **tokens, int parallelFlag)
+{
+    printf("Path: %s\n", path);
+    printf("Args: ");
+    for (int i = 0; i < 5; i++) {
+        printf("%s ", args[i]);
+    }
+
+    printf("\nTokens: ");
+    for (int i = 0; i < 6; i++) {
+        printf("%s ", tokens[i]);
+    }
+
+    printf("\nParallel: %d\n", parallelFlag);
 }
