@@ -205,9 +205,9 @@ int exists(node* head, int value);
  *********/
 
 /**
- * Prints out on screen information about the current user input
+ * Prints out on screen information about the current shell context
  */
-void debugInput(char *path, char **args, char **tokens, int parallelFlag);
+void debugContext(context *ctx);
 
 
 /********
@@ -659,22 +659,31 @@ void destroyList(node* head)
     }
 }
 
-/*****************
- * Debug helpers *
- *****************/
+/*********
+ * DEBUG *
+ *********/
 
-void debugInput(char *path, char **args, char **tokens, int parallelFlag)
+void debugContext(context *ctx)
 {
-    printf("Path: %s\n", path);
-    printf("Args: ");
-    for (int i = 0; i < 5; i++) {
-        printf("%s ", args[i]);
-    }
-
-    printf("\nTokens: ");
+    // Prints out all tokens
+    printf("Tokens:\n");
     for (int i = 0; i < 6; i++) {
-        printf("%s ", tokens[i]);
+        printf("Token #%d: %s\n", i, ctx->tokens[i]);
     }
 
-    printf("\nParallel: %d\n", parallelFlag);
+    // Prints out last command
+    printf("Previous command: %s\n", ctx->previous);
+
+    // Prints out parallel flag
+    printf("Parallel: %d\n", ctx->parallel);
+
+    // Prints out all child processes
+    printf("Child processes:\n");
+    int i = 0;
+    node *curr = ctx->bgProcs;
+    while (curr) {
+        printf("Child #%d: %d\n", i, curr->data);
+        curr = curr->next;
+        i++;
+    }
 }
