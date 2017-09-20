@@ -412,6 +412,65 @@ void resetParallelFlag(context *ctx)
 }
 
 /**
+ * Saves user's previous command only if command is not `last`. This is to prevent
+ * an infinite loop.
+ */
+void rememberCommand(context *ctx, char *command)
+{
+    if (strcmp(command, "last") != 0) {
+        strcpy(ctx->previous, command);
+    }
+}
+
+/**
+ * Checks for the `last` command, we do not update the command unless `last`
+ * is invoked.
+ *
+ * If `last` is invoked, we will update our current command to that of the
+ * previous command that we input into the interpreter.
+ */
+void checkPrevious(context *ctx, char *command)
+{
+    if (strcmp(command, "last") == 0 && strcmp(ctx->previous, "") != 0) {
+        strcpy(command, ctx->previous);
+    }
+}
+
+/**
+ * Spawns a new child process that runs the program located at `path`.
+ *
+ * Returns the linked list of background processes running
+ */
+void spawn(context *ctx)
+{
+    pid_t childPid;
+    childPid = fork();
+    if (childPid != 0) { // Parent
+        if (!ctx->parallel) {
+            waitpid(childPid, NULL, 0);
+        } else {
+            printf("Child %d in background\n", childPid);
+            addBackgroundTask(ctx, childPid);
+        }
+    } else { // Child
+        char *args[6];
+        for (int i = 0; i < 5; i++) {
+            if (strcmp(ctx->tokens[i], "") == 0 || strcmp(ctx->tokens[i], "&") == 0) {
+                args[i] = NULL; // Nullify empty strings or parallel token
+            } else {
+                args[i] = ctx->tokens[i];
+            }
+        }
+
+        // `execv` requires the array of pointers to be terminated with a NULL
+        // element.
+        args[5] = NULL;
+
+        execv(ctx->tokens[0], args);
+    }
+}
+
+/**
  * Frees up memory allocated to the shell context.
  */
 void freeContext(context *ctx)
