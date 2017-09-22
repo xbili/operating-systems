@@ -194,7 +194,7 @@ void freeTokensArray(char **tokens, int size);
 /**
  * Handles an invalid command
  */
-void invalidCommand(char *path);
+void handleInvalidCommand(char *path);
 
 /**
  * Forces the shell to wait for a child process.
@@ -323,7 +323,7 @@ void launch(context *ctx)
             printf("%s is not an executable.\n", ctx->tokens[0]);
             break;
         case NOT_FOUND:
-            invalidCommand(ctx->tokens[0]);
+            handleInvalidCommand(ctx->tokens[0]);
             break;
         default:
             spawn(ctx);
@@ -650,10 +650,10 @@ void freeTokensArray(char **tokens, int size) {
 /**
  * Handles an invalid command
  */
-void invalidCommand(char *command)
+void handleInvalidCommand(char *command)
 {
     if (strcmp(command, "last") == 0) {
-        printf("No previous command available.\n");
+        printf("\n");
     } else {
         printf("%s not found\n", command);
     }
