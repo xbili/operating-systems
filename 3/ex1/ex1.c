@@ -1,8 +1,8 @@
 /*************************************
 * Lab 3 Exercise 1
-* Name:
-* Student No:
-* Lab Group:
+* Name: Xu Bili
+* Student No: A0124368A
+* Lab Group: 4
 *************************************/
 
 #include <stdio.h>
@@ -11,6 +11,14 @@
 #include <sys/types.h>  // For Predefined constants
 #include <sys/ipc.h>    // For POSIX IPC
 #include <sys/shm.h>    // For POSIX Shared Memory
+
+// Constants
+#define READY_PARENT 0
+#define READY_CHILD 1
+#define READY_PARENT_VALUE 1111
+#define READY_CHILD_VALUE 1111
+#define PARTIAL_SUM_PARENT 2
+#define PARTIAL_SUM_CHILD 3
 
 int main()
 {
@@ -26,8 +34,10 @@ int main()
     scanf("%i",&initValue);
 
 
-    //TODO: Calculate the correct shdMemSize
-    shdMemSize = 0; 
+    // TODO: Calculate the correct shdMemSize
+    // We have two extra integers to indicate ready status of parent/child
+    // We have another two extra integers to store the partial sums
+    shdMemSize = (arraySize + 4) * 4;
 
     //Create a new shared memory region
     shdMemId = shmget( IPC_PRIVATE, shdMemSize, IPC_CREAT | 0666 );
@@ -44,31 +54,56 @@ int main()
         exit(1);
     }
 
-    //TODO: Initialized the shared memory region 
+    // TODO: Initialize the shared memory region
+    int *arr = (int*) shdMemRegion;
 
+    arr[READY_PARENT] = -1;
+    arr[READY_CHILD] = -1;
+    arr[PARTIAL_SUM_PARENT] = -1;
+    arr[PARTIAL_SUM_CHILD] = -1;
+
+    for (int i = 4; i < arraySize + 4; i++) {
+        arr[i] = initValue + i - 4;
+    }
 
     //Shared memory regions remained attached after fork()
     // Parent and child can now communicate with each other!
     result = fork();
     if (result){        //Parent
+        // Calculate our parent partial sum here
+        int parentSum = 0;
+        for (int i = (arraySize / 2) + 4; i < arraySize + 4; i++) {
+            parentSum += arr[i];
+        }
+        arr[PARTIAL_SUM_PARENT] = parentSum;
+        arr[READY_PARENT] = READY_PARENT_VALUE;
 
-        //TODO: Fill In Your Code Here
+        // Wait for our child to be done calculating
+        while (arr[READY_CHILD] != READY_CHILD_VALUE) {
+            sleep(1);
+        }
 
-
-
+        int childSum = arr[PARTIAL_SUM_CHILD];
 
         //Calculation ends. Show results.
-        //TODO: Indicate the correct variables for output
-        printf("Parent Sum = %d\n", -1);
-        printf("Child Sum = %d\n", -1);
-        printf("Total = %d\n", -1);
+        printf("Parent Sum = %d\n", parentSum);
+        printf("Child Sum = %d\n", childSum);
+        printf("Total = %d\n", parentSum + childSum);
 
         /*Important: Remember to detach the shared memory region*/
         shmdt( shdMemRegion );
     } else {            //Child
+        while (arr[READY_PARENT] != READY_PARENT_VALUE) {
+            sleep(1);
+        }
 
-        //TODO:Fill in Your Code Here
+        int childSum = 0;
+        for (int i = 4; i < (arraySize / 2) + 4; i++) {
+            childSum += arr[i];
+        }
 
+        arr[PARTIAL_SUM_CHILD] = childSum;
+        arr[READY_CHILD] = READY_CHILD_VALUE;
 
         /*Important: Remember to detach the shared memory region*/
         shmdt( shdMemRegion );
@@ -78,6 +113,6 @@ int main()
     }
 
     /*Important: Remember to remove the shared memory region after use!*/
-    shmctl(shdMemId, IPC_RMID, NULL); 
+    shmctl(shdMemId, IPC_RMID, NULL);
     return 0;
 }
