@@ -80,6 +80,7 @@ void semaphoreArrayPost( sharedSemaphore semInfo, int which )
     Mancala Game Related Functions and Data Structure
 ******************************************************************/
 
+#define FOOTMAN 1
 
 //Mancala DEFINES
 #define RED 10000
@@ -271,13 +272,17 @@ void mancalaPlayer(int id, int* sharedMem,
 #endif
 
         //TODO: Find out what to do before color beads are moved
+        semaphoreArrayWait(semaphores, FOOTMAN);
+        semaphoreArrayWait(semaphores, second + 2);
+        semaphoreArrayWait(semaphores, first + 2);
 
         moveColor( color, &mancala[first], &mancala[second],
             playCount, maxPlayCount, semaphores);
 
         //TODO: Find out what to do after color beads are moved
-
-
+        semaphoreArrayPost(semaphores, first + 2);
+        semaphoreArrayPost(semaphores, second + 2);
+        semaphoreArrayPost(semaphores, FOOTMAN);
     }
 
 }
@@ -357,7 +362,7 @@ int main(int argc, char** argv)
 
     //TODO: Add / Modify initialization for additional sempahores etc
     sharedSemaphore semaphores;
-    newSemaphoreArray( &semaphores, 1 );
+    newSemaphoreArray( &semaphores, nPlayer + 2 );
 
     //Suggestion: you can use constants / define to give each semaphore
     // index a name for ease of coding
@@ -366,6 +371,11 @@ int main(int argc, char** argv)
     // semaphoreArrayInit(semaphores, MUTEX, 1, 1);
 
     semaphoreArrayInit(semaphores, 0, 1, 1);
+    semaphoreArrayInit(semaphores, FOOTMAN, 1, nPlayer - 1);
+
+    for (int i = 0; i < nPlayer; i++) {
+        semaphoreArrayInit(semaphores, i + 2, 1, 1);
+    }
 
     //Spawn child processes
     for( i = 0; i < nPlayer; i++){
@@ -375,7 +385,7 @@ int main(int argc, char** argv)
         if (result == 0) {
 
             //TODO: Modify the function parameters if needed
-            mancalaPlayer(i, sharedMem, nPlayer, nRound, semaphores );
+            mancalaPlayer(i, sharedMem, nPlayer, nRound, semaphores);
 
             shmdt( (char*)sharedMem );
             //Dont remove this return! Prevent child from running fork()!
