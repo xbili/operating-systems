@@ -16,12 +16,12 @@
 #include <time.h>
 
 /** STARTS  ******************************************************
-    Semaphore related functions and data structure 
+    Semaphore related functions and data structure
     - Mostly function wrappers for handling an array of semaphores
         in shared memory
 ******************************************************************/
 
-typedef struct 
+typedef struct
 {
     sem_t* semArray;
     int shdMemId;
@@ -31,15 +31,15 @@ typedef struct
 void newSemaphoreArray( sharedSemaphore* newSharedSemaphore, int n )
 {
     //Create a shared memory region for the semaphores
-    newSharedSemaphore->shdMemId = 
+    newSharedSemaphore->shdMemId =
         shmget( IPC_PRIVATE, sizeof(sem_t) * n, IPC_CREAT | 0666 );
     if (newSharedSemaphore->shdMemId < 0){
         perror("Cannot Allocate Shared Memory");
         exit(1);
     }
-   
+
     //Points the pointers to right place
-    newSharedSemaphore->semArray = 
+    newSharedSemaphore->semArray =
         (sem_t*) shmat(newSharedSemaphore->shdMemId, NULL, 0);
 }
 
@@ -47,12 +47,12 @@ void newSemaphoreArray( sharedSemaphore* newSharedSemaphore, int n )
 void destroySempahoreArray( sharedSemaphore* semInfo )
 {
     shmdt( (char*)semInfo->semArray );
-    shmctl(semInfo->shdMemId, IPC_RMID, NULL); 
+    shmctl(semInfo->shdMemId, IPC_RMID, NULL);
 }
 
 //Function wrapper for sem_init(). Perform the initialization
 // on one of the semaphores
-int semaphoreArrayInit( sharedSemaphore semInfo, int which, 
+int semaphoreArrayInit( sharedSemaphore semInfo, int which,
         int pshared, unsigned int value)
 {
     return sem_init( &(semInfo.semArray[which]), pshared, value);
@@ -73,7 +73,7 @@ void semaphoreArrayPost( sharedSemaphore semInfo, int which )
 }
 
 /** ENDS *********************************************************
-    Semaphore related functions 
+    Semaphore related functions
 ******************************************************************/
 
 /** STARTS  ******************************************************
@@ -100,13 +100,13 @@ void setupMancala(int *mancala, int seed, int size)
         nRed = rand() % 21 + 10;
         nGreen = rand() % 21 + 10;
         nBlue = rand() % 21 + 10;
-        mancala[i] = makeMancalaPlate(nRed, nGreen, nBlue);  
+        mancala[i] = makeMancalaPlate(nRed, nGreen, nBlue);
     }
 }
 
 int countColor(int color, int plate )
 {
-    return (plate/color) % 100; 
+    return (plate/color) % 100;
 }
 
 void countMancala (int* mancala, int size, int* colorCount)
@@ -116,9 +116,9 @@ void countMancala (int* mancala, int size, int* colorCount)
     colorCount[0] = colorCount[1] = colorCount[2] = 0;
 
     for (i = 0; i < size; i++) {
-        colorCount[0] += countColor( RED, mancala[i]); 
-        colorCount[1] += countColor( GREEN, mancala[i]); 
-        colorCount[2] += countColor( BLUE, mancala[i]); 
+        colorCount[0] += countColor( RED, mancala[i]);
+        colorCount[1] += countColor( GREEN, mancala[i]);
+        colorCount[2] += countColor( BLUE, mancala[i]);
     }
 }
 
@@ -127,9 +127,9 @@ void removeColorFromPlate(int color, int* plate, int amount)
     int mapIndex[] = {RED, GREEN, BLUE};
     int nColors[3], i ;
 
-    nColors[0] = countColor( RED, *plate);   
-    nColors[1] = countColor( GREEN, *plate);   
-    nColors[2] = countColor( BLUE, *plate);   
+    nColors[0] = countColor( RED, *plate);
+    nColors[1] = countColor( GREEN, *plate);
+    nColors[2] = countColor( BLUE, *plate);
 
     for (i = 0; i < 3; i++){
         if (mapIndex[i] == color){
@@ -145,9 +145,9 @@ void addColorToPlate(int color, int* plate, int amount)
     int mapIndex[] = {RED, GREEN, BLUE};
     int nColors[3], i;
 
-    nColors[0] = countColor( RED, *plate);   
-    nColors[1] = countColor( GREEN, *plate);   
-    nColors[2] = countColor( BLUE, *plate);   
+    nColors[0] = countColor( RED, *plate);
+    nColors[1] = countColor( GREEN, *plate);
+    nColors[2] = countColor( BLUE, *plate);
 
     for (i = 0; i < 3; i++){
         if (mapIndex[i] == color){
@@ -161,8 +161,8 @@ void addColorToPlate(int color, int* plate, int amount)
 void printPlate( int plate )
 {
     printf("Red [%02d] | Green [%02d] | Blue [%02d]\n",
-            countColor( RED, plate), 
-            countColor( GREEN, plate), countColor( BLUE, plate)); 
+            countColor( RED, plate),
+            countColor( GREEN, plate), countColor( BLUE, plate));
 }
 
 void printMancala( int *mancala, int size)
@@ -196,7 +196,7 @@ void moveColor(int color, int* fromPlate, int* toPlate,
     if (amount > limit){
         amount = limit;
     }
-     
+
     //Can turn on hesitation to simulate workload
 
 #ifdef HESITATE
@@ -206,13 +206,13 @@ void moveColor(int color, int* fromPlate, int* toPlate,
 #endif
 
     //1 ms = 1000000 ns
-    hesitate.tv_nsec = waitAmount * 1000000; 
+    hesitate.tv_nsec = waitAmount * 1000000;
 
 #ifdef DEBUG
-    printf("\tMove %d of color %d in %d ms\n", 
+    printf("\tMove %d of color %d in %d ms\n",
             amount, color, waitAmount);
 #endif
-    
+
     //Record Simultaneous Player for Checking Later
     semaphoreArrayWait(semaphores, 0);
 
@@ -227,7 +227,7 @@ void moveColor(int color, int* fromPlate, int* toPlate,
 
     //High resolution sleep to simulate workload
     nanosleep(&hesitate, NULL);
-    
+
     //Place color beads into second plate
     addColorToPlate( color, toPlate, amount);
 
@@ -248,7 +248,7 @@ void moveColor(int color, int* fromPlate, int* toPlate,
 
 //TODO: Add additional parameters (e.g. more sempahores) if needed
 
-void mancalaPlayer(int id, int* sharedMem, 
+void mancalaPlayer(int id, int* sharedMem,
         int size, int nRound, sharedSemaphore semaphores )
 {
     int first, second, color, i;
@@ -259,20 +259,20 @@ void mancalaPlayer(int id, int* sharedMem,
     playCount = &sharedMem[PLAYCOUNT];
     maxPlayCount = &sharedMem[MAXPLAYCOUNT];
     first = id;
-    second = (id+1) % size; 
+    second = (id+1) % size;
 
 
     for (i = 0; i < nRound; i++){
         color = colorArray[ rand() % 3 ] ;
 
 #ifdef DEBUG
-        printf("Player[%d]: Moving Color %d from [%d] to [%d]\n", 
+        printf("Player[%d]: Moving Color %d from [%d] to [%d]\n",
             id, color, first, second);
 #endif
-    
+
         //TODO: Find out what to do before color beads are moved
 
-        moveColor( color, &mancala[first], &mancala[second], 
+        moveColor( color, &mancala[first], &mancala[second],
             playCount, maxPlayCount, semaphores);
 
         //TODO: Find out what to do after color beads are moved
@@ -287,7 +287,7 @@ void checkState(int initState[], int finalState[])
     int i, pass = 1;
 
     for (i = 0; i < 3; i++){
-        printf("[%d] vs [%d] => ", 
+        printf("[%d] vs [%d] => ",
             initState[i], finalState[i]);
         if (initState[i] != finalState[i]){
             printf("FAILED!\n");
@@ -306,7 +306,7 @@ void checkState(int initState[], int finalState[])
 int main(int argc, char** argv)
 {
     int result, i;
-    int shdMemSize, shdMemId, *sharedMem; 
+    int shdMemSize, shdMemId, *sharedMem;
     int *mancala, nPlayer, nRound, seed;
     int initState[3], finalState[3];
 
@@ -323,7 +323,7 @@ int main(int argc, char** argv)
     printf("Mancala with %d Players, %d Rounds. Using [%d] seed.\n",
         nPlayer, nRound, seed);
 
- 
+
     //Create a new shared memory region
     //TODO: You can allocate larger shared memory region if you need
 
@@ -344,7 +344,7 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    //Initialize 
+    //Initialize
     mancala = &sharedMem[EXTRASPACE];
 
 
@@ -360,7 +360,7 @@ int main(int argc, char** argv)
     newSemaphoreArray( &semaphores, 1 );
 
     //Suggestion: you can use constants / define to give each semaphore
-    // index a name for ease of coding 
+    // index a name for ease of coding
     // e.g. we use the first sempahore as a mutex, so
     // #define MUTEX 0
     // semaphoreArrayInit(semaphores, MUTEX, 1, 1);
@@ -382,7 +382,7 @@ int main(int argc, char** argv)
             return 0;   //child ends here
         }
     }
-    
+
     //Waiting for all Players
     for( i = 0; i < nPlayer; i++){
 #ifdef DEBUG
@@ -404,8 +404,8 @@ int main(int argc, char** argv)
     printf("** Simultaneous Player Count = %d\n",
         sharedMem[MAXPLAYCOUNT]);
 
-    //Remove shared memory region 
-    shmctl(shdMemId, IPC_RMID, NULL); 
+    //Remove shared memory region
+    shmctl(shdMemId, IPC_RMID, NULL);
     destroySempahoreArray( &semaphores );
 
     return 0;
