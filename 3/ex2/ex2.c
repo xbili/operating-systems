@@ -17,11 +17,11 @@
 #include <math.h>
 
 /** STARTS  ******************************************************
-    Semaphore related functions and data structure 
+    Semaphore related functions and data structure
     - Mostly function wrappers for handling an array of semaphores
         in shared memory
 ******************************************************************/
-typedef struct 
+typedef struct
 {
     sem_t* semArray;
     int shdMemId;
@@ -31,15 +31,15 @@ typedef struct
 void newSemaphoreArray( sharedSemaphore* newSharedSemaphore, int n )
 {
     //Create a shared memory region for the semaphores
-    newSharedSemaphore->shdMemId = 
+    newSharedSemaphore->shdMemId =
         shmget( IPC_PRIVATE, sizeof(sem_t) * n, IPC_CREAT | 0666 );
     if (newSharedSemaphore->shdMemId < 0){
         perror("Cannot Allocate Shared Memory");
         exit(1);
     }
-   
+
     //Points the pointers to right place
-    newSharedSemaphore->semArray = 
+    newSharedSemaphore->semArray =
         (sem_t*) shmat(newSharedSemaphore->shdMemId, NULL, 0);
 }
 
@@ -47,12 +47,12 @@ void newSemaphoreArray( sharedSemaphore* newSharedSemaphore, int n )
 void destroySempahoreArray( sharedSemaphore* semInfo )
 {
     shmdt( (char*)semInfo->semArray );
-    shmctl(semInfo->shdMemId, IPC_RMID, NULL); 
+    shmctl(semInfo->shdMemId, IPC_RMID, NULL);
 }
 
 //Function wrapper for sem_init(). Perform the initialization
 // on one of the semaphores
-int semaphoreArrayInit( sharedSemaphore semInfo, int which, 
+int semaphoreArrayInit( sharedSemaphore semInfo, int which,
         int pshared, unsigned int value)
 {
     return sem_init( &(semInfo.semArray[which]), pshared, value);
@@ -73,14 +73,14 @@ void semaphoreArrayPost( sharedSemaphore semInfo, int which )
 }
 
 /** ENDS *********************************************************
-    Semaphore related functions 
+    Semaphore related functions
 ******************************************************************/
 
 #define N 500000
 
 int main()
 {
-    
+
     int shdMemId, result, i, idx;
     int shdMemSize = sizeof(int) * (N+1);  //Size in # of bytes
     int* sharedArray;
@@ -118,7 +118,7 @@ int main()
             //only read+write to idx should be protected
             //TODO: Figure out how to protect the production
 
-            idx = sharedArray[0];       
+            idx = sharedArray[0];
             sharedArray[0] = idx+1;
 
             sharedArray[idx] = 1111;
@@ -163,10 +163,10 @@ int main()
                 nCount++;
         }
     }
-    printf("Audit Result: P = %i, C = %i, N = %i\n", 
+    printf("Audit Result: P = %i, C = %i, N = %i\n",
             pCount, cCount, nCount);
 
-    //Clean Up 
+    //Clean Up
 
     // Deallocate the semaphore
     destroySempahoreArray(&mutex);
@@ -175,7 +175,7 @@ int main()
     shmdt( (char*)sharedArray );
 
     /*Important: Remember to remove the shared memory region after use!*/
-    shmctl(shdMemId, IPC_RMID, NULL); 
+    shmctl(shdMemId, IPC_RMID, NULL);
 
 
     return 0;
