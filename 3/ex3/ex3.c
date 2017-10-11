@@ -97,9 +97,9 @@ void setupMancala(int *mancala, int seed, int size)
 
     srand(seed);
     for (i = 0; i < size; i++) {
-	nRed = rand() % 21 + 10;
-	nGreen = rand() % 21 + 10;
-	nBlue = rand() % 21 + 10;
+        nRed = rand() % 21 + 10;
+        nGreen = rand() % 21 + 10;
+        nBlue = rand() % 21 + 10;
         mancala[i] = makeMancalaPlate(nRed, nGreen, nBlue);  
     }
 }
