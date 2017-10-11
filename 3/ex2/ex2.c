@@ -113,26 +113,36 @@ int main()
 
     result = fork();
     if (result){        //Parent
-        for(i = 0; i < N/2; i ++){
+        for(i = 0; i < N/2; i++){
 
             //only read+write to idx should be protected
             //TODO: Figure out how to protect the production
 
+            // EDIT: Protect this with a mutex
+            semaphoreArrayWait(mutex, 0);
             idx = sharedArray[0];
             sharedArray[0] = idx+1;
+            semaphoreArrayPost(mutex, 0);
+            // EDIT END
 
             sharedArray[idx] = 1111;
+
         }
 
      } else {            //Child
-        for(i = 0; i < N/2; i ++){
+        for(i = 0; i < N/2; i++){
 
             //TODO: Figure out how to protect the production
 
+            // EDIT: Protect this with a mutex
+            semaphoreArrayWait(mutex, 0);
             idx = sharedArray[0];
             sharedArray[0] = idx+1;
+            semaphoreArrayPost(mutex, 0);
+            // EDIT END
 
             sharedArray[idx] = 9999;
+
         }
 
 
