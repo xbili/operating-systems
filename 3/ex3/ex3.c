@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <semaphore.h>
 #include <time.h>
+#include <signal.h>
 
 /** STARTS  ******************************************************
     Semaphore related functions and data structure
@@ -308,6 +309,34 @@ void checkState(int initState[], int finalState[])
     Mancala Game Related Functions and Data Structure
 ******************************************************************/
 
+/**
+ * Signal handlers
+ */
+void parentTrap(int sig)
+{
+    printf("\nParent Cleaning Up:\n");
+
+    // Tell parent to ignore SIGTERM and send it to all other processes
+    // in the process group.
+    signal(SIGTERM, SIG_IGN);
+    kill(0, SIGTERM);
+
+    // TODO: Wait for each child to terminate
+    //
+
+    printf("PID[%d] Ended.\n", getpid());
+
+    // Terminate the parent process
+    _exit(0);
+}
+
+void childTrap(int sig)
+{
+    printf("PID[%d] Ended.\n", getpid());
+    _exit(0);
+}
+
+
 int main(int argc, char** argv)
 {
     int result, i;
@@ -383,6 +412,8 @@ int main(int argc, char** argv)
 
         //Each child process is a Mancala Game Player
         if (result == 0) {
+            // BONUS: Handles SIGTERM signal
+            signal(SIGTERM, childTrap);
 
             //TODO: Modify the function parameters if needed
             mancalaPlayer(i, sharedMem, nPlayer, nRound, semaphores);
@@ -392,6 +423,9 @@ int main(int argc, char** argv)
             return 0;   //child ends here
         }
     }
+
+    // BONUS: Handles SIGINT signal
+    signal(SIGINT, parentTrap);
 
     //Waiting for all Players
     for( i = 0; i < nPlayer; i++){
