@@ -27,11 +27,13 @@ int main()
 
     result = fork();
     if (result){        //Parent
+        sem_wait(semPtr);
         for(i = 0; i < 3; i++){
             //TODO: how to protect?
             printf("p\n");
             sleep(3);
         }
+        sem_post(semPtr);
 
         wait(NULL);
         /*Important: Remember to detach the shared memory region*/
@@ -39,12 +41,14 @@ int main()
 
     } else {            //Child
 
+        sem_wait(semPtr);
         for(i = 0; i < 3; i++){
             //TODO: how to protect?
 
             printf("c\n");
             sleep(1);
         }
+        sem_post(semPtr);
 
        /*Important: Remember to detach the shared memory region*/
         shmdt( (char*)semPtr );
