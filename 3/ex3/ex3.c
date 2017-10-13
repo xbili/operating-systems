@@ -321,12 +321,22 @@ void parentTrap(int sig)
     signal(SIGTERM, SIG_IGN);
     kill(0, SIGTERM);
 
-    // TODO: Wait for each child to terminate
-    //
+    int pid;
+    int status;
 
-    printf("PID[%d] Ended.\n", getpid());
+    pid = waitpid(0, &status, WNOHANG);
+    while (pid != -1) {
+        if (pid != 0 && WIFEXITED(status)) {
+            // TODO: Add the childpid into a linked list
+        }
+        pid = waitpid(0, &status, WNOHANG);
+    }
+
+    // TODO: Iterate through all the children and print out terminated.
+    printf("\t[%d] terminated.\n", pid);
 
     // Terminate the parent process
+    printf("PID[%d] Ended.\n", getpid());
     _exit(0);
 }
 
@@ -413,6 +423,8 @@ int main(int argc, char** argv)
         //Each child process is a Mancala Game Player
         if (result == 0) {
             // BONUS: Handles SIGTERM signal
+            // Child should ignore the SIGINT from user.
+            signal(SIGINT, SIG_IGN);
             signal(SIGTERM, childTrap);
 
             //TODO: Modify the function parameters if needed
