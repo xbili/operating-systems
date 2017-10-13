@@ -309,9 +309,39 @@ void checkState(int initState[], int finalState[])
     Mancala Game Related Functions and Data Structure
 ******************************************************************/
 
-/**
- * Signal handlers
- */
+/*********
+ * BONUS *
+ *********/
+
+/*************************
+ * LINKEDLIST OPERATIONS *
+ *************************/
+// A single linked list node
+typedef struct NODE{
+    int data;
+    struct NODE* next;
+} node;
+
+node* addToHead(node* head, int newData)
+{
+    node* added = malloc(sizeof(node));
+    added->data = newData;
+    added->next = head;
+
+    return added;
+}
+
+void destroyList(node* head)
+{
+    node* curr = head;
+    while (curr) {
+        node* tmp = curr->next;
+        free(curr);
+        curr = tmp;
+    }
+}
+
+
 void parentTrap(int sig)
 {
     printf("\nParent Cleaning Up:\n");
@@ -321,19 +351,31 @@ void parentTrap(int sig)
     signal(SIGTERM, SIG_IGN);
     kill(0, SIGTERM);
 
-    int pid;
+    // Keep track of all child process IDs in a linked list (for logging
+    // purposes)
+    node *childPids = NULL;
+
+    int pid = 0;
     int status;
 
-    pid = waitpid(0, &status, WNOHANG);
+    // Wait for all children spawned by this process
     while (pid != -1) {
-        if (pid != 0 && WIFEXITED(status)) {
-            // TODO: Add the childpid into a linked list
-        }
         pid = waitpid(0, &status, WNOHANG);
+        if (pid > 0 && WIFEXITED(status)) { // Only if the child has exited
+            // Add the childpid into a linked list
+            childPids = addToHead(childPids, pid);
+        }
     }
 
-    // TODO: Iterate through all the children and print out terminated.
-    printf("\t[%d] terminated.\n", pid);
+    // Iterate through all the children that have terminated.
+    node *curr = childPids;
+    while (curr) {
+        printf("\t[%d] terminated.\n", curr->data);
+        curr = curr->next;
+    }
+
+    // Free up memory from linked list
+    destroyList(childPids);
 
     // Terminate the parent process
     printf("PID[%d] Ended.\n", getpid());
@@ -343,6 +385,8 @@ void parentTrap(int sig)
 void childTrap(int sig)
 {
     printf("PID[%d] Ended.\n", getpid());
+
+    // Terminate the child program
     _exit(0);
 }
 
