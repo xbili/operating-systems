@@ -313,9 +313,8 @@ void checkState(int initState[], int finalState[])
  * BONUS *
  *********/
 
-/*************************
- * LINKEDLIST OPERATIONS *
- *************************/
+// LINKEDLIST HELPERS
+
 // A single linked list node
 typedef struct NODE{
     int data;
@@ -341,6 +340,7 @@ void destroyList(node* head)
     }
 }
 
+// SIGNAL HANDLERS
 
 void parentTrap(int sig)
 {
@@ -454,9 +454,15 @@ int main(int argc, char** argv)
     // semaphoreArrayInit(semaphores, MUTEX, 1, 1);
 
     semaphoreArrayInit(semaphores, 0, 1, 1);
+
+    // We adopt a similar concept to dining philosophers, by limiting the
+    // number of people playing the game at a single time. Footman keeps track
+    // of the number of current players.
     semaphoreArrayInit(semaphores, FOOTMAN, 1, nPlayer - 1);
 
+    // Initialize a mutex for each plate
     for (int i = 0; i < nPlayer; i++) {
+        // +2 because first 2 locations are reserved for mutex and footman
         semaphoreArrayInit(semaphores, i + 2, 1, 1);
     }
 
