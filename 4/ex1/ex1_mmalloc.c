@@ -56,19 +56,51 @@ void printHeapStatistic()
 {
     //TODO: declare variables
 
+    // Meta size for each partition
+    int partitionMetaSize = hmi.partMetaSize;
+
+    // Keep track of the total number of holes
+    int totalHoles = 0;
+    int totalHolesSize = 0;
+
+    // Keep track of the total number of occupied partitions
+    int totalOccupied = 0;
+    int totalOccupiedSize = 0;
+
+    // Keep track of total bytes used for meta information
+    int totalMetaSize = 0;
+
+    // Iterate through all partitions inside the heap
+    partMetaInfo *partition = hmi.base;
+    while (partition) {
+        totalMetaSize += partitionMetaSize;
+
+        if (partition->status == FREE) {
+            totalHoles++;
+            totalHolesSize += partition->size;
+        } else {
+            totalOccupied++;
+            totalOccupiedSize += partition->size;
+        }
+
+        // Iterate to the next partition
+        partition = partition->nextPart;
+    }
+
 
     printf("Heap Usage Statistics\n");
+    printf("=====================\n");
 
     //TODO: calculate and print the releavant information
     printf("Total Space: %d bytes\n", hmi.totalSize);
 
-    printf("Total Occupied Partitions: %d\n", 0);
-    printf("\tTotal Occupied Size: %d bytes\n", 0);
+    printf("Total Occupied Partitions: %d\n", totalOccupied);
+    printf("\tTotal Occupied Size: %d bytes\n", totalOccupiedSize);
 
-    printf("Total Number of Holes: %d\n", 0);
-    printf("\tTotal Hole Size: %d bytes\n", 0);
+    printf("Total Number of Holes: %d\n", totalHoles);
+    printf("\tTotal Hole Size: %d bytes\n", totalHolesSize);
 
-    printf("Total Meta Information Size: %d bytes\n", 0);
+    printf("Total Meta Information Size: %d bytes\n", totalMetaSize);
 }
 
 
