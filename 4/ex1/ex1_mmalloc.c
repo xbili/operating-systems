@@ -1,9 +1,9 @@
 /*************************************
-* Lab 4 Exercise 1
-* Name:
-* Student No:
-* Lab Group:
-*************************************/
+ * Lab 4 Exercise 1
+ * Name: Xu Bili
+ * Student No: A0124368A
+ * Lab Group: 4
+ *************************************/
 
 #include <stdio.h>
 #include "mmalloc.h"
@@ -14,42 +14,42 @@ static heapMetaInfo hmi;
 
 void initializeMetaPartAt(partMetaInfo* bmiPtr, int size)
 {
-	bmiPtr->size = size;
-	bmiPtr->nextPart = NULL;
-	bmiPtr->status = FREE;
+    bmiPtr->size = size;
+    bmiPtr->nextPart = NULL;
+    bmiPtr->status = FREE;
 }
 
 int setupHeap(int initialSize)
 {
-	void* base;
+    void* base;
 
-	base = sbrk(0);
-	if(	sbrk(initialSize) == (void*)-1){
-		printf("Cannot set break! Behavior undefined!\n");
-		return 0;
-	}
+    base = sbrk(0);
+    if(	sbrk(initialSize) == (void*)-1){
+        printf("Cannot set break! Behavior undefined!\n");
+        return 0;
+    }
 
 
-	hmi.totalSize = initialSize;
-	hmi.base = (partMetaInfo*) base;
-	hmi.partMetaSize = sizeof(partMetaInfo);
-	
-	initializeMetaPartAt(hmi.base, initialSize - hmi.partMetaSize);
+    hmi.totalSize = initialSize;
+    hmi.base = (partMetaInfo*) base;
+    hmi.partMetaSize = sizeof(partMetaInfo);
 
-	return 1;
+    initializeMetaPartAt(hmi.base, initialSize - hmi.partMetaSize);
+
+    return 1;
 }
 
 void printMetaPartList(partMetaInfo* bmiPtr)
 {
-	partMetaInfo* current = bmiPtr;
-	
-	for ( current = bmiPtr; current != NULL; 
-		current = current->nextPart){
+    partMetaInfo* current = bmiPtr;
 
-		printf("[+%5d | %5d bytes | %d]\n", 
-				(int)((void*)current - (void*)hmi.base), 
+    for ( current = bmiPtr; current != NULL;
+            current = current->nextPart){
+
+        printf("[+%5d | %5d bytes | %d]\n",
+                (int)((void*)current - (void*)hmi.base),
                 current->size, current->status);
-	}
+    }
 }
 
 void printHeapStatistic()
@@ -61,7 +61,7 @@ void printHeapStatistic()
 
     //TODO: calculate and print the releavant information
     printf("Total Space: %d bytes\n", hmi.totalSize);
-    
+
     printf("Total Occupied Partitions: %d\n", 0);
     printf("\tTotal Occupied Size: %d bytes\n", 0);
 
@@ -75,32 +75,32 @@ void printHeapStatistic()
 
 void printHeapMetaInfo()
 {
-	printf("Heap Meta Info:\n");
-	printf("===============\n");
-	printf("Total Size = %d bytes\n", hmi.totalSize);
-	printf("Start Address = %p\n", hmi.base);
-	printf("Partition Meta Size = %d bytes\n", hmi.partMetaSize);
-	printf("Partition list:\n");
+    printf("Heap Meta Info:\n");
+    printf("===============\n");
+    printf("Total Size = %d bytes\n", hmi.totalSize);
+    printf("Start Address = %p\n", hmi.base);
+    printf("Partition Meta Size = %d bytes\n", hmi.partMetaSize);
+    printf("Partition list:\n");
 
-	printMetaPartList((partMetaInfo*) hmi.base);
-	printf("\n");
+    printMetaPartList((partMetaInfo*) hmi.base);
+    printf("\n");
 
 }
 
 void splitPart(partMetaInfo *bigPart, int size)
 {
-	partMetaInfo *holeAt;
-	int holeSize;
+    partMetaInfo *holeAt;
+    int holeSize;
 
-	//Remember: When calculating address offset, use a pointer of
-	//(void*) type (or char*), so that the calculation is in bytes.
-	holeAt = (void*)bigPart + hmi.partMetaSize + size;
-	holeSize = bigPart->size - hmi.partMetaSize - size;
+    //Remember: When calculating address offset, use a pointer of
+    //(void*) type (or char*), so that the calculation is in bytes.
+    holeAt = (void*)bigPart + hmi.partMetaSize + size;
+    holeSize = bigPart->size - hmi.partMetaSize - size;
 
-	//Make a new partition for the hole
-	initializeMetaPartAt(holeAt, holeSize);
-	holeAt->nextPart = bigPart->nextPart;
-	bigPart->nextPart = holeAt;
+    //Make a new partition for the hole
+    initializeMetaPartAt(holeAt, holeSize);
+    holeAt->nextPart = bigPart->nextPart;
+    bigPart->nextPart = holeAt;
 
     bigPart->size = size;
 
@@ -108,53 +108,53 @@ void splitPart(partMetaInfo *bigPart, int size)
 
 void* malloc(int size)
 {
-	partMetaInfo *current = hmi.base;
+    partMetaInfo *current = hmi.base;
 
     //We need to make sure the size is word
     // aligned, i.e. if the word size is 4 bytes, the size need to be
     // rounded to nearest multiples of 4. Otherwise, user can get "bus
     // error" when accessing non-aligned memory locations
 
-    // divide by 4 then multiply by 4 gives rounded multiples of 4. 
-    // addition  of 4 round up to the next multiple 
+    // divide by 4 then multiply by 4 gives rounded multiples of 4.
+    // addition  of 4 round up to the next multiple
     // subtraction take care of the case where size is already multiples
     //  of 4
     size = (size - 4) / 4 * 4 + 4;
-	
 
-	while ( current!=NULL && 
-			(current->status == OCCUPIED || current->size < size) ){
 
-		current = current->nextPart;
-	}
+    while ( current!=NULL &&
+            (current->status == OCCUPIED || current->size < size) ){
 
-	if (current == NULL){	//heap full
-		return NULL;
-	}	
+        current = current->nextPart;
+    }
 
-	//Can we split the part? 
-	//The new "hole" should >= 4 bytes after placing in a new part
-	// meta info structure 
-	if (current->size >= size + hmi.partMetaSize + 4 ){
-		splitPart(current, size);
-	}
+    if (current == NULL){	//heap full
+        return NULL;
+    }
 
-	current->status = OCCUPIED;
-	
-	return (void*)current + hmi.partMetaSize;
+    //Can we split the part?
+    //The new "hole" should >= 4 bytes after placing in a new part
+    // meta info structure
+    if (current->size >= size + hmi.partMetaSize + 4 ){
+        splitPart(current, size);
+    }
+
+    current->status = OCCUPIED;
+
+    return (void*)current + hmi.partMetaSize;
 }
 
 void free(void* address)
 {
-	partMetaInfo *toBeFreed;
+    partMetaInfo *toBeFreed;
 
-	//For a robust implementation, we should verify whether
-	// address is valid (i.e. whether it points to a part we allocated
-	// earlier)
+    //For a robust implementation, we should verify whether
+    // address is valid (i.e. whether it points to a part we allocated
+    // earlier)
 
-	//For our lab, we assume the user always give a valid pointer ;-)
-	
- 	toBeFreed = address - hmi.partMetaSize;
+    //For our lab, we assume the user always give a valid pointer ;-)
 
-	toBeFreed->status = FREE;	//Question: Really this simple?
+    toBeFreed = address - hmi.partMetaSize;
+
+    toBeFreed->status = FREE;	//Question: Really this simple?
 }
