@@ -103,7 +103,7 @@ void splitPart(partMetaInfo *bigPart, int size)
 
 void* malloc(int size)
 {
-    partMetaInfo *current = NULL;
+    partMetaInfo *current = hmi.base;
 
     //We need to make sure the size is word
     // aligned, i.e. if the word size is 4 bytes, the size need to be
@@ -116,23 +116,34 @@ void* malloc(int size)
     //  of 4
     size = (size - 4) / 4 * 4 + 4;
 
-    //TODO: Implement worst fit algorithm here
+    // Iterate through the heap info to find the part with the largest size
+    partMetaInfo *worst = NULL;
+    while (current != NULL) {
+        // We find a free partition that is big enough for what we need
+        if (current->status == FREE && current->size > size) {
+            if (worst == NULL || current->size > worst->size) {
+                worst = current;
+            }
+        }
 
+        current = current->nextPart;
+    }
 
-    if (current == NULL){	//heap full
+    // Heap full
+    if (worst == NULL) {
         return NULL;
     }
 
     //Can we split the part?
     //The new "hole" should >= 4 bytes after placing in a new part
     // meta info structure
-    if (current->size >= size + hmi.partMetaSize + 4 ){
-        splitPart(current, size);
+    if (worst->size >= size + hmi.partMetaSize + 4 ){
+        splitPart(worst, size);
     }
 
-    current->status = OCCUPIED;
+    worst->status = OCCUPIED;
 
-    return (void*)current + hmi.partMetaSize;
+    return (void*)worst + hmi.partMetaSize;
 }
 
 void free(void* address)
