@@ -146,7 +146,7 @@ void free(void* address)
     toBeFreed = address - hmi.partMetaSize;
     toBeFreed->status = FREE;
 
-    // Checks entire partition to merge possible partitions
+    // Checks all partitions to merge free partitions
     partMetaInfo *curr = hmi.base;
     while (curr && curr->nextPart) {
         if (curr->status == FREE && curr->nextPart->status == FREE) {
@@ -161,14 +161,29 @@ void free(void* address)
 
 void compact()
 {
-    //TODO: Perform compaction
-    //Note: The relative ordering of the occupied partitions should be
-    //      maintained.
+    partMetaInfo *curr = hmi.base;
 
-    //Remember that the _content_ of each partition need to be copied
-    // too. Look into memmove() library call
+    // Keep track of the size of all the free memory in the middle
+    int totalFreeSize = 0;
+    while (curr && curr->nextPart) {
+        if (curr->status == FREE) {
+            totalFreeSize += curr->size + hmi.partMetaSize;
 
+            // Copy the next partition into this partition
+            memmove(curr,
+                    curr->nextPart,
+                    curr->nextPart->size + hmi.partMetaSize);
+        }
 
+        curr = curr->nextPart;
+    }
+
+    // We need to handle the case if the last partition is not free
+    if (curr->status == FREE) {
+        curr->size += totalFreeSize;
+    } else if (totalFreeSize > 0) { // If there are free partitions removed
+        initializeMetaPartAt(curr->nextPart, totalFreeSize);
+    }
 }
 
 //Do NOT Change
