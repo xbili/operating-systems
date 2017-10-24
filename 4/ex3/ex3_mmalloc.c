@@ -146,10 +146,18 @@ void free(void* address)
     toBeFreed = address - hmi.partMetaSize;
     toBeFreed->status = FREE;
 
-
-    //TODO: Implement merging here
-
+    // Checks entire partition to merge possible partitions
+    partMetaInfo *curr = hmi.base;
+    while (curr && curr->nextPart) {
+        if (curr->status == FREE && curr->nextPart->status == FREE) {
+            curr->size += curr->nextPart->size + hmi.partMetaSize;
+            curr->nextPart = curr->nextPart->nextPart;
+        } else {
+            curr = curr->nextPart;
+        }
+    }
 }
+
 
 void compact()
 {
