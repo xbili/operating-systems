@@ -36,20 +36,24 @@ int main()
     fdIn = open(  fileName, O_RDONLY );
 
     //TODO:Check for valid file
+    if (fdIn == -1) {
+        printf("Cannot Open\n");
+        return 1;
+    }
 
     //TODO:Calculate the file size
-
-    fileSize = 0;   //change this line to reflect actual file size
+    fileSize = lseek(fdIn, 0, SEEK_END); // Read to the end of the file
     printf("Size = %i bytes\n", fileSize);
+    lseek(fdIn, 0, SEEK_SET); // Reset the FD to start of the file again
 
     //TODO: Change the code below so that it reads until the end of file
     // Right now, this only read the first item.
-    read( fdIn, buffer, 4);
+    while (read(fdIn, buffer, 4)) {
+        //This is how you can "convert" bytes into a single integer
+        ip = (int*) &buffer;
+        printf("%d\n", *ip);
+    };
 
-    //This is how you can "convert" bytes into a single integer
-    ip = (int*) &buffer;
-    printf("%d\n", *ip); 
-    
     close( fdIn );  //good practice
 
     return 0;
