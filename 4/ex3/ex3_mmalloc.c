@@ -162,28 +162,43 @@ void free(void* address)
 void compact()
 {
     partMetaInfo *curr = hmi.base;
+    partMetaInfo *prev = hmi.base;
 
     // Keep track of the size of all the free memory in the middle
     int totalFreeSize = 0;
-    while (curr && curr->nextPart) {
-        if (curr->status == FREE) {
-            totalFreeSize += curr->size + hmi.partMetaSize;
+    while (curr) {
+        if (curr->status == OCCUPIED) {
+            // Copy this partition into the next available partition
 
-            // Copy the next partition into this partition
-            memmove(curr,
-                    curr->nextPart,
-                    curr->nextPart->size + hmi.partMetaSize);
+            // Trick to increment pointer by bytes
+            char *dest = (char*) prev;
+            if (prev->status != FREE) {
+                dest += prev->size + hmi.partMetaSize;
+            }
+
+            memmove(
+                dest,
+                curr,
+                curr->size + hmi.partMetaSize
+            );
+
+            prev->nextPart = (partMetaInfo*) dest;
+            prev = prev->nextPart;
+        } else {
+            totalFreeSize += curr->size + hmi.partMetaSize;
         }
 
         curr = curr->nextPart;
     }
 
-    // We need to handle the case if the last partition is not free
-    if (curr->status == FREE) {
-        curr->size += totalFreeSize;
-    } else if (totalFreeSize > 0) { // If there are free partitions removed
-        initializeMetaPartAt(curr->nextPart, totalFreeSize);
-    }
+    // Move to the end of the last available block
+    char *dest = (char*) prev;
+    dest += prev->size + hmi.partMetaSize;
+    partMetaInfo *freeSpace = (partMetaInfo*) dest;
+    prev->nextPart = freeSpace;
+
+    initializeMetaPartAt(prev->nextPart, totalFreeSize - hmi.partMetaSize);
+    freeSpace->nextPart = NULL; // For good measure
 }
 
 //Do NOT Change
