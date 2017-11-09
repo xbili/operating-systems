@@ -1,8 +1,8 @@
 /*************************************
 * Lab 5 Exercise 3
-* Name:
-* Student No:
-* Lab Group:
+* Name: Xu Bili
+* Student No: A0124368A
+* Lab Group: 4
 *************************************/
 
 #include <stdio.h>
@@ -73,7 +73,10 @@ void printSwapFile(swapFile* sf);
 typedef struct {
     int nFrame;     //maximum number of physical frames
     page frameArr[PHYSICALFRAMES];  //model the memory as an array of frames
+    int dirty[PHYSICALFRAMES]; //
 } memory;
+#define DIRTY 1
+#define CLEAN 0
 
 void initMemory( memory* );
 
@@ -112,6 +115,7 @@ typedef struct {
     int frameUsageTable[ PHYSICALFRAMES ];
     memory *physicalMem;
     swapFile *secStorage;
+    int evictionFrame;
 } OS;               
 
 
@@ -122,6 +126,8 @@ int loadProgram( OS*, char*);
 int locatePTE( OS*, int, int*, pte* );
 
 int handlePageFault( OS*, int, int*);
+
+void updateEvictionFrame( OS* );
 
 void printOperatingSystem( OS* );
 
@@ -254,7 +260,7 @@ int main()
     //    Print out the following statistics here:
     //    1. Total Number of access
     //    2. Percentage of TLB-Miss (2 place of precision)
-    //    3. Percentage of Page-Fault (2 place of precision)       
+    //    3. Percentage of Page-Fault (2 place of precision)
 
     return 0;
 }
@@ -371,6 +377,9 @@ int writeOneFrame( memory* mem, page* onePage, int pageNum )
     
     memcpy(&(mem->frameArr[pageNum]), onePage, sizeof(page));
 
+    // Set dirty bit
+    mem->dirty[pageNum] = DIRTY;
+
     return 1;
 
 }
@@ -391,6 +400,7 @@ int writeOneWord( memory* mem, int pageNum, int offset, int value )
         return 0;
 
     mem->frameArr[pageNum].loc[offset] = value;
+    mem->dirty[pageNum] = DIRTY;
     return 1;
 }
 
@@ -429,6 +439,7 @@ void initOperatingSystem( OS* os, memory* mem, swapFile* sf)
 
     os->physicalMem = mem;
     os->secStorage = sf;
+    os->evictionFrame = 0;
 
     for ( i = 0; i < LOGICALPAGES; i++){
         os->pageTable[i].validBit = INVALID;
@@ -527,7 +538,7 @@ int handlePageFault( OS* os, int pageNum, int* victimPageNum )
     //   corresponding swap page. Figure out how to check whether 
     //   a page is dirty and perform the corresponding write
 
-    frameNumber = 0;
+    frameNumber = os->evictionFrame;
 
     //Check who's the page to be replaced?
     replacedPageNum = os->frameUsageTable[ frameNumber ];
@@ -540,6 +551,19 @@ int handlePageFault( OS* os, int pageNum, int* victimPageNum )
         os->pageTable[ replacedPageNum ].whereBit = IN_DISK;
         //In our case, the page is always written back to the same swap file page
         os->pageTable[ replacedPageNum ].frameNumber = replacedPageNum;
+
+        // Write the evicted page into the secondary storage no matter what
+        // BUT we need to ensure that we are only writing to storage if the
+        // evicted page is dirty
+        if (os->physicalMem->dirty[frameNumber]) {
+            writeSwapPage(
+                os->secStorage,
+                &os->physicalMem->frameArr[frameNumber],
+                replacedPageNum
+            );
+            os->physicalMem->dirty[frameNumber] = CLEAN;
+        }
+
     }
 
     //Load the page from secondary storage
@@ -556,8 +580,15 @@ int handlePageFault( OS* os, int pageNum, int* victimPageNum )
     //Update Physical Frame Usage
     os->frameUsageTable[ frameNumber ] = pageNum;
 
+    updateEvictionFrame(os);
+
     return frameNumber;
 
+}
+
+void updateEvictionFrame( OS* os )
+{
+    os->evictionFrame = (os->evictionFrame + 1) % PHYSICALFRAMES;
 }
 
 void printOperatingSystem( OS* os)
@@ -626,7 +657,7 @@ int findFrameNumber(cpu* theCPU, int pageNum )
 
         //Store the new PTE in TLB
 
-        //TODO:
+        // TODO:
         //   Currently, the 0th entry in TLB is always replaced by new 
         //    PTE coming in. 
         //   Change this part, so that TLB to be replaced is chosen as
@@ -636,8 +667,14 @@ int findFrameNumber(cpu* theCPU, int pageNum )
         //         multiple disabled entries.
         //     - If there is no disabled TLB entry, the 0th entry is
         //     used.
+        tlbeIdx = 0;
+        for (int i = 0; i < TLBSIZE; i++) {
+            if (theCPU->TLB[i].enableBit == DISABLED) {
+                tlbeIdx = i;
+                break;
+            }
+        }
 
-        tlbeIdx = 0;   //change this
         theCPU->TLB[tlbeIdx].pageTableEntry = tempPTE;
         theCPU->TLB[tlbeIdx].enableBit = ENABLED;
         theCPU->TLB[tlbeIdx].pteNumber = pageNum;
