@@ -164,6 +164,8 @@ int writeMemAccess( cpu*, int, int, int);
 
 void printCPU( cpu* );
 
+void printStats( os* );
+
 
 /**************** Other ****************************/
 
