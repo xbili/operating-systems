@@ -109,6 +109,14 @@ typedef struct {
 
 void printPTE( pte* );
 
+// Statistics to keep track of in OS
+typedef struct {
+    int tlbHits;
+    int tlbMiss;
+    int pageFaults;
+    int accessCount;
+} statistics;
+
 //Memory information kept in OS
 typedef struct {
     pte pageTable[ LOGICALPAGES ];
@@ -116,8 +124,8 @@ typedef struct {
     memory *physicalMem;
     swapFile *secStorage;
     int evictionFrame;
+    statistics *stats;
 } OS;               
-
 
 void initOperatingSystem( OS*, memory*, swapFile* );
 
@@ -164,7 +172,7 @@ int writeMemAccess( cpu*, int, int, int);
 
 void printCPU( cpu* );
 
-void printStats( os* );
+void printStats( OS* os );
 
 
 /**************** Other ****************************/
@@ -257,12 +265,15 @@ int main()
                 printSwapFile( &secondaryStorage );
                 break;
         }
+
+        myOS.stats->accessCount += 1;
     }
     // TODO:
     //    Print out the following statistics here:
     //    1. Total Number of access
     //    2. Percentage of TLB-Miss (2 place of precision)
     //    3. Percentage of Page-Fault (2 place of precision)
+    printStats(&myOS);
 
     return 0;
 }
@@ -439,6 +450,9 @@ void initOperatingSystem( OS* os, memory* mem, swapFile* sf)
 {
     int i;
 
+    statistics *stats = malloc(sizeof(statistics));
+
+    os->stats = stats;
     os->physicalMem = mem;
     os->secStorage = sf;
     os->evictionFrame = 0;
@@ -524,6 +538,9 @@ int handlePageFault( OS* os, int pageNum, int* victimPageNum )
 {
     int swapPageNum, frameNumber, replacedPageNum;
     page tempPage;
+
+    // Update statistics
+    os->stats->pageFaults += 1;
 
     //Remember, the "frameNumber" field is used as the swap page#
     // if the page is in disk
@@ -639,10 +656,13 @@ int findFrameNumber(cpu* theCPU, int pageNum )
     //Check TLB for page table entry
     tlbeIdx = searchTLB( theCPU->TLB, pageNum );
 
+
     if (tlbeIdx != -1){//TLB-Hit
-
+        // Update statistics
+        theCPU->operatingSystem->stats->tlbHits += 1;
     } else {             //TLB-Miss
-
+        // Update statistics
+        theCPU->operatingSystem->stats->tlbMiss += 1;
         //Ask the OS about this PTE
         if(!locatePTE( theCPU->operatingSystem, 
                         pageNum, &victimPageNum, &tempPTE )){
@@ -743,6 +763,21 @@ void printCPU( cpu* theCPU)
         } else {
             printf("INVALID\n");
         }
+    }
+
+}
+
+
+void printStats( OS *os )
+{
+    statistics *stats = os->stats;
+    printf("%d\n", stats->accessCount);
+    if (stats->accessCount == 0) {
+        printf("%d\n", 0);
+        printf("%d\n", 0);
+    } else {
+        printf("%.2f\n", (double) stats->tlbMiss / (double) stats->accessCount * 100);
+        printf("%.2f\n", (double) stats->pageFaults / (double) stats->accessCount * 100);
     }
 
 }
