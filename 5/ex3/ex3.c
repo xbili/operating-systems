@@ -235,6 +235,7 @@ int main()
                 scanf("%i %i", &pageNum, &offset);
                 printf("Read %i.%i: ", pageNum, offset );
                 if( readMemAccess( &theCPU, pageNum, offset, &value)){
+                    myOS.stats->accessCount += 1;
                     printf("%i\n", value);
                 } else {
                     printf("failed\n");
@@ -245,6 +246,7 @@ int main()
                 scanf("%i %i %i", &pageNum, &offset, &value);
                 printf("Write %i -> %i.%i : ", value, pageNum, offset );
                 if( writeMemAccess( &theCPU, pageNum, offset, value)){
+                    myOS.stats->accessCount += 1;
                     printf("ok\n");
                 } else {
                     printf("failed\n");
@@ -266,7 +268,6 @@ int main()
                 break;
         }
 
-        myOS.stats->accessCount += 1;
     }
     // TODO:
     //    Print out the following statistics here:
@@ -661,8 +662,6 @@ int findFrameNumber(cpu* theCPU, int pageNum )
         // Update statistics
         theCPU->operatingSystem->stats->tlbHits += 1;
     } else {             //TLB-Miss
-        // Update statistics
-        theCPU->operatingSystem->stats->tlbMiss += 1;
         //Ask the OS about this PTE
         if(!locatePTE( theCPU->operatingSystem, 
                         pageNum, &victimPageNum, &tempPTE )){
@@ -700,6 +699,9 @@ int findFrameNumber(cpu* theCPU, int pageNum )
         theCPU->TLB[tlbeIdx].pageTableEntry = tempPTE;
         theCPU->TLB[tlbeIdx].enableBit = ENABLED;
         theCPU->TLB[tlbeIdx].pteNumber = pageNum;
+
+        // Update statistics
+        theCPU->operatingSystem->stats->tlbMiss += 1;
     }
 
     //At this point the TLB entry is valid
@@ -776,8 +778,8 @@ void printStats( OS *os )
         printf("%d\n", 0);
         printf("%d\n", 0);
     } else {
-        printf("%.2f\n", (double) stats->tlbMiss / (double) stats->accessCount * 100);
-        printf("%.2f\n", (double) stats->pageFaults / (double) stats->accessCount * 100);
+        printf("%.2f\n", ((double) stats->tlbMiss / (double) stats->accessCount) * 100);
+        printf("%.2f\n", ((double) stats->pageFaults / (double) stats->accessCount) * 100);
     }
 
 }
