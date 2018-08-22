@@ -1,3 +1,3 @@
-# CS2106 Assignments
+# Operating Systems Assignments
 
-Private repository for CS2106: Operating Systems lab assignments.
+Private repository for Operating Systems lab assignments.
